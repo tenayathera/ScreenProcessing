@@ -67,48 +67,48 @@ plt.rcParams['xtick.color'] = almost_black
 plt.rcParams['xtick.major.width'] = axisLineWidth
 
 
-def loadData(experimentName, collapsedToTranscripts=True, premergedCounts=False):
-    dataDict = {'library': pd.read_csv(experimentName + '_librarytable.txt', sep='\t', header=0, index_col=0),
-                'counts': pd.read_csv(experimentName + '_mergedcountstable.txt', sep='\t', header=list(range(2)),
+def load_data(experiment_name, collapsed_to_transcripts=True, premerged_counts=False):
+    data_dict = {'library': pd.read_csv(experiment_name + '_librarytable.txt', sep='\t', header=0, index_col=0),
+                'counts': pd.read_csv(experiment_name + '_mergedcountstable.txt', sep='\t', header=list(range(2)),
                                       index_col=list(range(1))),
-                'phenotypes': pd.read_csv(experimentName + '_phenotypetable.txt', sep='\t', header=list(range(2)),
+                'phenotypes': pd.read_csv(experiment_name + '_phenotypetable.txt', sep='\t', header=list(range(2)),
                                           index_col=list(range(1)))}
 
-    if premergedCounts:
-        dataDict['premerged counts'] = pd.read_csv(experimentName + '_rawcountstable.txt', sep='\t',
+    if premerged_counts:
+        data_dict['premerged counts'] = pd.read_csv(experiment_name + '_rawcountstable.txt', sep='\t',
                                                    header=list(range(3)), index_col=list(range(1)))
 
-    if collapsedToTranscripts:
-        dataDict['transcript scores'] = pd.read_csv(experimentName + '_genetable.txt', sep='\t', header=list(range(3)),
+    if collapsed_to_transcripts:
+        data_dict['transcript scores'] = pd.read_csv(experiment_name + '_genetable.txt', sep='\t', header=list(range(3)),
                                                     index_col=list(range(2)))
-        dataDict['gene scores'] = pd.read_csv(experimentName + '_genetable_collapsed.txt', sep='\t',
+        data_dict['gene scores'] = pd.read_csv(experiment_name + '_genetable_collapsed.txt', sep='\t',
                                               header=list(range(3)), index_col=list(range(1)))
     else:
-        dataDict['gene scores'] = pd.read_csv(experimentName + '_genetable.txt', sep='\t', header=list(range(3)),
+        data_dict['gene scores'] = pd.read_csv(experiment_name + '_genetable.txt', sep='\t', header=list(range(3)),
                                               index_col=list(range(1)))
 
-    return dataDict
+    return data_dict
 
 
 ##read counts-level plotting functions
-def countsHistogram(data, condition=None, replicate=None):
-    if not checkOptions(data, 'counts', (condition, replicate)):
+def counts_histogram(data, condition=None, replicate=None):
+    if not check_options(data, 'counts', (condition, replicate)):
         return
 
     fig, axis = plt.subplots(figsize=(3.5 * figureScale, 2.5 * figureScale))
-    cleanAxes(axis)
+    clean_axes(axis)
 
     axis.semilogy()
 
-    logCounts = np.log2(data['counts'].loc[:, (condition, replicate)].fillna(0) + 1)
+    log_counts = np.log2(data['counts'].loc[:, (condition, replicate)].fillna(0) + 1)
 
-    axis.hist(logCounts,
+    axis.hist(log_counts,
               bins=int(len(data['counts']) ** .3),
               histtype='step', color=almost_black, lw=1)
 
     ymax = axis.get_ylim()[1]
-    axis.plot([np.median(logCounts)] * 2, (0.8, ymax), color='#BFBFBF', lw=.5, alpha=.5)
-    axis.text(np.median(logCounts) * .98, ymax * .90,
+    axis.plot([np.median(log_counts)] * 2, (0.8, ymax), color='#BFBFBF', lw=.5, alpha=.5)
+    axis.text(np.median(log_counts) * .98, ymax * .90,
               'median reads = {0:.0f}'.format(np.median(data['counts'].loc[:, (condition, replicate)].fillna(0))),
               horizontalalignment='right', verticalalignment='top', fontsize=6)
 
@@ -118,26 +118,28 @@ def countsHistogram(data, condition=None, replicate=None):
     axis.set_ylabel('Number of sgRNAs')
 
     plt.tight_layout()
-    return displayFigure(fig, 'counts_hist')
+    return display_figure(fig, 'counts_hist')
 
 
-def countsScatter(data, condition_x=None, replicate_x=None,
-                  condition_y=None, replicate_y=None,
-                  showAll=True, showNegatives=True, showGenes=[],
-                  colorByPhenotype_condition=None, colorByPhenotype_replicate=None):
-    if not checkOptions(data, 'counts', (condition_x, replicate_x)):
+def counts_scatter(data, condition_x=None, replicate_x=None,
+                   condition_y=None, replicate_y=None,
+                   show_all=True, show_negatives=True, show_genes=None,
+                   color_by_phenotype_condition=None, color_by_phenotype_replicate=None):
+    if not show_genes:
+        show_genes = []
+    if not check_options(data, 'counts', (condition_x, replicate_x)):
         return
-    if not checkOptions(data, 'counts', (condition_y, replicate_y)):
+    if not check_options(data, 'counts', (condition_y, replicate_y)):
         return
-    if colorByPhenotype_condition != None and colorByPhenotype_replicate != None \
-            and not checkOptions(data, 'phenotypes', (colorByPhenotype_condition, colorByPhenotype_replicate)):
+    if color_by_phenotype_condition is not None and color_by_phenotype_replicate is not None \
+            and not check_options(data, 'phenotypes', (color_by_phenotype_condition, color_by_phenotype_replicate)):
         return
 
     fig, axis = plt.subplots(figsize=(3 * figureScale, 3 * figureScale))
-    cleanAxes(axis)
+    clean_axes(axis)
 
-    if showAll:
-        if colorByPhenotype_condition == None or colorByPhenotype_replicate == None:
+    if show_all:
+        if color_by_phenotype_condition is None or color_by_phenotype_replicate is None:
             axis.scatter(np.log2(data['counts'].loc[:, (condition_x, replicate_x)] + 1),
                          np.log2(data['counts'].loc[:, (condition_y, replicate_y)] + 1),
                          s=1.5, c=almost_black, label='all sgRNAs',
@@ -146,26 +148,26 @@ def countsScatter(data, condition_x=None, replicate_x=None,
             result = axis.scatter(np.log2(data['counts'].loc[:, (condition_x, replicate_x)] + 1),
                                   np.log2(data['counts'].loc[:, (condition_y, replicate_y)] + 1),
                                   s=1.5,
-                                  c=data['phenotypes'].loc[:, (colorByPhenotype_condition, colorByPhenotype_replicate)],
+                                  c=data['phenotypes'].loc[:, (color_by_phenotype_condition, color_by_phenotype_replicate)],
                                   cmap=yellow_blue, label='all sgRNAs',
                                   rasterized=True)
 
             plt.colorbar(result)
 
-    if showNegatives:
+    if show_negatives:
         axis.scatter(
             np.log2(data['counts'].loc[data['library']['gene'] == 'negative_control', (condition_x, replicate_x)] + 1),
             np.log2(data['counts'].loc[data['library']['gene'] == 'negative_control', (condition_y, replicate_y)] + 1),
             s=1.5, c='#BFBFBF', label='non-targeting sgRNAs',
             rasterized=True)
 
-    if showGenes and len(showGenes) != 0:
-        if isinstance(showGenes, str):
-            showGenes = [showGenes]
+    if show_genes and len(show_genes) != 0:
+        if isinstance(show_genes, str):
+            show_genes = [show_genes]
 
-        geneSet = set(data['library']['gene'])
-        for i, gene in enumerate(showGenes):
-            if gene not in geneSet:
+        gene_set = set(data['library']['gene'])
+        for i, gene in enumerate(show_genes):
+            if gene not in gene_set:
                 print('{0} not in dataset'.format(gene))
             else:
                 axis.scatter(
@@ -182,32 +184,32 @@ def countsScatter(data, condition_x=None, replicate_x=None,
     axis.set_ylabel('{0} {1} sgRNA read counts (log2)'.format(condition_y, replicate_y), fontsize=8)
 
     plt.tight_layout()
-    return displayFigure(fig, 'counts_scatter')
+    return display_figure(fig, 'counts_scatter')
 
 
-def premergedCountsScatterMatrix(data, condition=None, replicate=None):
-    if not checkOptions(data, 'counts', (condition, replicate)):
+def premerged_counts_scatter_matrix(data, condition=None, replicate=None):
+    if not check_options(data, 'counts', (condition, replicate)):
         return
 
     if 'premerged counts' not in data:
         print('Data must be loaded with premergedCounts = True')
         return
 
-    dataTable = data['premerged counts'].loc[:, (condition, replicate)]
-    dataColumns = dataTable.columns
-    if len(dataColumns) == 1:
+    data_table = data['premerged counts'].loc[:, (condition, replicate)]
+    data_columns = data_table.columns
+    if len(data_columns) == 1:
         print('Only one counts file for {0}, {1}; no scatter matrix will be generated'.format(condition, replicate))
         return
 
-    fig, axes = plt.subplots(len(dataColumns), len(dataColumns),
-                             figsize=(len(dataColumns) * 2.5, len(dataColumns) * 2.5))
+    fig, axes = plt.subplots(len(data_columns), len(data_columns),
+                             figsize=(len(data_columns) * 2.5, len(data_columns) * 2.5))
 
-    for i, (name1, col1) in enumerate(dataTable.items()):
+    for i, (name1, col1) in enumerate(data_table.items()):
         name1 = '{0:.30}'.format(os.path.split(name1)[-1])
-        for j, (name2, col2) in enumerate(dataTable.items()):
+        for j, (name2, col2) in enumerate(data_table.items()):
             name2 = '{0:.30}'.format(os.path.split(name2)[-1])
             if i < j:
-                cleanAxes(axes[i, j], top=False, bottom=False, left=False, right=False)
+                clean_axes(axes[i, j], top=False, bottom=False, left=False, right=False)
                 axes[i, j].xaxis.set_tick_params(top='off', bottom='off', labelbottom='off')
                 axes[i, j].yaxis.set_tick_params(left='off', right='off', labelleft='off')
 
@@ -231,18 +233,18 @@ def premergedCountsScatterMatrix(data, condition=None, replicate=None):
                 axes[i, j].yaxis.set_tick_params(labelsize=6)
 
     plt.tight_layout(pad=.05)
-    return displayFigure(fig, 'premerged_counts_scatter')
+    return display_figure(fig, 'premerged_counts_scatter')
 
 
 ##phenotype-level plotting functions
 # not yet implemented: counts vs phenotype
 
-def phenotypeHistogram(data, phenotype=None, replicate=None):
-    if not checkOptions(data, 'phenotypes', (phenotype, replicate)):
+def phenotype_histogram(data, phenotype=None, replicate=None):
+    if not check_options(data, 'phenotypes', (phenotype, replicate)):
         return
 
     fig, axis = plt.subplots(figsize=(3.5 * figureScale, 2.5 * figureScale))
-    cleanAxes(axis)
+    clean_axes(axis)
 
     axis.semilogy()
 
@@ -259,41 +261,46 @@ def phenotypeHistogram(data, phenotype=None, replicate=None):
     axis.set_ylabel('Number of sgRNAs')
 
     plt.tight_layout()
-    return displayFigure(fig, 'phenotype_hist')
+    return display_figure(fig, 'phenotype_hist')
 
 
-def phenotypeScatter(data, phenotype_x=None, replicate_x=None,
-                     phenotype_y=None, replicate_y=None,
-                     showAll=True, showNegatives=True,
-                     showGenes=[], showGeneSets={}):
-    if not checkOptions(data, 'phenotypes', (phenotype_x, replicate_x)):
+def phenotype_scatter(data, phenotype_x=None, replicate_x=None,
+                      phenotype_y=None, replicate_y=None,
+                      show_all=True, show_negatives=True,
+                      show_genes=None, show_gene_sets=None):
+    if not show_genes:
+        show_genes = []
+    if not show_gene_sets:
+        show_gene_sets = {}
+
+    if not check_options(data, 'phenotypes', (phenotype_x, replicate_x)):
         return
-    if not checkOptions(data, 'phenotypes', (phenotype_y, replicate_y)):
+    if not check_options(data, 'phenotypes', (phenotype_y, replicate_y)):
         return
 
     fig, axis = plt.subplots(figsize=(3 * figureScale, 3 * figureScale))
-    cleanAxes(axis)
+    clean_axes(axis)
 
-    if showAll:
+    if show_all:
         axis.scatter(data['phenotypes'].loc[:, (phenotype_x, replicate_x)],
                      data['phenotypes'].loc[:, (phenotype_y, replicate_y)],
                      s=1.5, c=almost_black, label='all sgRNAs',
                      rasterized=True)
 
-    if showNegatives:
+    if show_negatives:
         axis.scatter(data['phenotypes'].loc[data['library']['gene'] == 'negative_control', (phenotype_x, replicate_x)],
                      data['phenotypes'].loc[data['library']['gene'] == 'negative_control', (phenotype_y, replicate_y)],
                      s=1.5, c='#BFBFBF', label='non-targeting sgRNAs',
                      rasterized=True)
 
     i = 0
-    if showGenes and len(showGenes) != 0:
-        if isinstance(showGenes, str):
-            showGenes = [showGenes]
+    if show_genes and len(show_genes) != 0:
+        if isinstance(show_genes, str):
+            show_genes = [show_genes]
 
-        geneSet = set(data['library']['gene'])
-        for i, gene in enumerate(showGenes):
-            if gene not in geneSet:
+        gene_set = set(data['library']['gene'])
+        for i, gene in enumerate(show_genes):
+            if gene not in gene_set:
                 print('{0} not in dataset'.format(gene))
             else:
                 axis.scatter(data['phenotypes'].loc[data['library']['gene'] == gene, (phenotype_x, replicate_x)],
@@ -301,21 +308,21 @@ def phenotypeScatter(data, phenotype_x=None, replicate_x=None,
                              s=3, c=dark2[i], label=gene,
                              rasterized=True)
 
-    if showGeneSets and len(showGeneSets) != 0:
-        if not isinstance(showGeneSets, dict) or not \
-                (isinstance(showGeneSets[list(showGeneSets.keys())[0]], set) or isinstance(
-                    showGeneSets[list(showGeneSets.keys())[0]], list)):
+    if show_gene_sets and len(show_gene_sets) != 0:
+        if not isinstance(show_gene_sets, dict) or not \
+                (isinstance(show_gene_sets[list(show_gene_sets.keys())[0]], set) or isinstance(
+                    show_gene_sets[list(show_gene_sets.keys())[0]], list)):
             print('Gene sets must be a dictionary of {set_name: [gene list/set]} pairs')
 
         else:
-            for j, gs in enumerate(showGeneSets):
-                sgsTargetingSet = data['library']['gene'].apply(lambda gene: gene in showGeneSets[gs])
-                axis.scatter(data['phenotypes'].loc[sgsTargetingSet, (phenotype_x, replicate_x)],
-                             data['phenotypes'].loc[sgsTargetingSet, (phenotype_y, replicate_y)],
+            for j, gs in enumerate(show_gene_sets):
+                sgs_targeting_set = data['library']['gene'].apply(lambda one_gene: one_gene in show_gene_sets[gs])
+                axis.scatter(data['phenotypes'].loc[sgs_targeting_set, (phenotype_x, replicate_x)],
+                             data['phenotypes'].loc[sgs_targeting_set, (phenotype_y, replicate_y)],
                              s=3, c=dark2[i + j], label=gs,
                              rasterized=True)
 
-    plotGrid(axis)
+    plot_grid(axis)
 
     plt.legend(loc='best', fontsize=6, handletextpad=0.005)
 
@@ -323,29 +330,29 @@ def phenotypeScatter(data, phenotype_x=None, replicate_x=None,
     axis.set_ylabel('sgRNA {0} {1}'.format(phenotype_y, replicate_y), fontsize=8)
 
     plt.tight_layout()
-    return displayFigure(fig, 'phenotype_scatter')
+    return display_figure(fig, 'phenotype_scatter')
 
 
-def sgRNAsPassingFilterHist(data, phenotype, replicate, transcripts=False):
-    if not checkOptions(data, 'phenotypes', (phenotype, replicate)):
+def sg_r_n_as_passing_filter_hist(data, phenotype, replicate, transcripts=False):
+    if not check_options(data, 'phenotypes', (phenotype, replicate)):
         return
 
     fig, axis = plt.subplots(figsize=(3.5 * figureScale, 2.5 * figureScale))
-    cleanAxes(axis)
+    clean_axes(axis)
 
     axis.semilogy()
 
     if transcripts:
-        sgRNAsPerGene = data['phenotypes'].loc[
+        sg_RNAs_per_gene = data['phenotypes'].loc[
             data['library']['gene'] != 'negative_control', (phenotype, replicate)].groupby(
             [data['library']['gene'], data['library']['transcripts']]).count()
     else:
-        sgRNAsPerGene = data['phenotypes'].loc[
+        sg_RNAs_per_gene = data['phenotypes'].loc[
             data['library']['gene'] != 'negative_control', (phenotype, replicate)].groupby(
             data['library']['gene']).count()
 
-    axis.hist(sgRNAsPerGene,
-              bins=np.arange(min(sgRNAsPerGene), max(sgRNAsPerGene) + 1, 1),
+    axis.hist(sg_RNAs_per_gene,
+              bins=np.arange(min(sg_RNAs_per_gene), max(sg_RNAs_per_gene) + 1, 1),
               histtype='step', color=almost_black, lw=1)
 
     axis.set_ylim((0.9, axis.get_ylim()[1]))
@@ -355,242 +362,246 @@ def sgRNAsPassingFilterHist(data, phenotype, replicate, transcripts=False):
     axis.set_ylabel('Number of sgRNAs')
 
     plt.tight_layout()
-    return displayFigure(fig, 'sgRNAs_passing_filter_hist')
+    return display_figure(fig, 'sgRNAs_passing_filter_hist')
 
 
 ##gene-level plotting functions
-def volcanoPlot(data, phenotype=None, replicate=None, transcripts=False, showPseudo=True,
-                effectSizeLabel=None, pvalueLabel=None, hitThreshold=7,
-                labelHits=False, showGeneSets={}, labelGeneSets=True):
-    if not checkOptions(data, 'genes', (phenotype, replicate)):
+def volcano_plot(data, phenotype=None, replicate=None, transcripts=False, show_pseudo=True,
+                 effect_size_label=None, pvalue_label=None, hit_threshold=7,
+                 label_hits=False, show_gene_sets=None, label_gene_sets=True):
+
+    if not show_gene_sets:
+        show_gene_sets = {}
+    if not check_options(data, 'genes', (phenotype, replicate)):
         return
 
     if transcripts:
         table = data['transcript scores'][(phenotype, replicate)].copy()
-        isPseudo = table.apply(lambda row: row.name[0][:6] == 'pseudo', axis=1)
+        is_pseudo = table.apply(lambda single_row: single_row.name[0][:6] == 'pseudo', axis=1)
     else:
         table = data['gene scores'][(phenotype, replicate)].copy()
-        isPseudo = table.apply(lambda row: row.name[:6] == 'pseudo', axis=1)
+        is_pseudo = table.apply(lambda single_row: single_row.name[:6] == 'pseudo', axis=1)
 
-    if effectSizeLabel == None:
-        effectSizeLabel = getEffectSizeLabel(table)
+    if effect_size_label is None:
+        effect_size_label = get_effect_size_label(table)
 
-        if effectSizeLabel == None:
+        if effect_size_label is None:
             return
 
-    if pvalueLabel == None:
-        pvalueLabel = getPvalueLabel(table)
+    if pvalue_label is None:
+        pvalue_label = get_pvalue_label(table)
 
-        if pvalueLabel == None:
+        if pvalue_label is None:
             return
 
-    discScore = lambda z, p: p * np.abs(z)
+    disc_score = lambda z, p: p * np.abs(z)
 
-    pseudogeneScores = table[isPseudo]
-    pseudoStd = np.std(pseudogeneScores[effectSizeLabel])
-    table.loc[:, 'thresh'] = discScore(table[effectSizeLabel] / pseudoStd,
-                                       -1 * np.log10(table[pvalueLabel])) >= hitThreshold
+    pseudogene_scores = table[is_pseudo]
+    pseudo_std = np.std(pseudogene_scores[effect_size_label])
+    table.loc[:, 'thresh'] = disc_score(table[effect_size_label] / pseudo_std,
+                                       -1 * np.log10(table[pvalue_label])) >= hit_threshold
 
-    yGenes = -1 * np.log10(table[pvalueLabel])
-    xGenes = table[effectSizeLabel]
+    y_genes = -1 * np.log10(table[pvalue_label])
+    x_genes = table[effect_size_label]
 
     fig, axis = plt.subplots(1, 1, figsize=(4 * figureScale, 3.5 * figureScale))
-    cleanAxes(axis)
+    clean_axes(axis)
 
-    axis.scatter(table.loc[isPseudo.ne(True)].loc[table['thresh'], effectSizeLabel],
-                 -1 * np.log10(table.loc[isPseudo.ne(True)].loc[table['thresh'], pvalueLabel].values),
+    axis.scatter(table.loc[is_pseudo.ne(True)].loc[table['thresh'], effect_size_label],
+                 -1 * np.log10(table.loc[is_pseudo.ne(True)].loc[table['thresh'], pvalue_label].values),
                  s=4,
                  c='#7570b3',
                  label='Gene hit',
                  rasterized=True)
 
-    axis.scatter(table.loc[isPseudo.ne(True)].loc[table['thresh'].ne(True), effectSizeLabel],
-                 -1 * np.log10(table.loc[isPseudo.ne(True)].loc[table['thresh'].ne(True), pvalueLabel].values),
+    axis.scatter(table.loc[is_pseudo.ne(True)].loc[table['thresh'].ne(True), effect_size_label],
+                 -1 * np.log10(table.loc[is_pseudo.ne(True)].loc[table['thresh'].ne(True), pvalue_label].values),
                  s=4,
                  c='#999999',
                  label='Gene non-hit',
                  rasterized=True)
 
-    if labelHits:
-        for gene, row in table.loc[isPseudo.ne(True)].loc[table['thresh']].iterrows():
+    if label_hits:
+        for gene, row in table.loc[is_pseudo.ne(True)].loc[table['thresh']].iterrows():
             if transcripts:
                 gene = ', '.join(gene)
 
-            axis.text(row[effectSizeLabel], -1 * np.log10(row[pvalueLabel]), gene, fontsize=6,
-                      horizontalalignment='left' if row[effectSizeLabel] > 0 else 'right', verticalalignment='center')
+            axis.text(row[effect_size_label], -1 * np.log10(row[pvalue_label]), gene, fontsize=6,
+                      horizontalalignment='left' if row[effect_size_label] > 0 else 'right', verticalalignment='center')
 
-    if showPseudo:
-        axis.scatter(table.loc[isPseudo.ne(False)].loc[table['thresh'], effectSizeLabel],
-                     -1 * np.log10(table.loc[isPseudo.ne(False)].loc[table['thresh'], pvalueLabel].values),
+    if show_pseudo:
+        axis.scatter(table.loc[is_pseudo.ne(False)].loc[table['thresh'], effect_size_label],
+                     -1 * np.log10(table.loc[is_pseudo.ne(False)].loc[table['thresh'], pvalue_label].values),
                      s=4,
                      c='#d95f02',
                      label='Negative control gene hit',
                      rasterized=True)
 
-        axis.scatter(table.loc[isPseudo.ne(False)].loc[table['thresh'].ne(True), effectSizeLabel],
-                     -1 * np.log10(table.loc[isPseudo.ne(False)].loc[table['thresh'].ne(True), pvalueLabel].values),
+        axis.scatter(table.loc[is_pseudo.ne(False)].loc[table['thresh'].ne(True), effect_size_label],
+                     -1 * np.log10(table.loc[is_pseudo.ne(False)].loc[table['thresh'].ne(True), pvalue_label].values),
                      s=4,
                      c='#dadaeb',
                      label='Negative control gene',
                      rasterized=True)
 
-    if showGeneSets and len(showGeneSets) != 0:
-        if not isinstance(showGeneSets, dict) or not \
-                (isinstance(showGeneSets[list(showGeneSets.keys())[0]], set) or isinstance(
-                    showGeneSets[list(showGeneSets.keys())[0]], list)):
+    if show_gene_sets and len(show_gene_sets) != 0:
+        if not isinstance(show_gene_sets, dict) or not \
+                (isinstance(show_gene_sets[list(show_gene_sets.keys())[0]], set) or isinstance(
+                    show_gene_sets[list(show_gene_sets.keys())[0]], list)):
             print('Gene sets must be a dictionary of {set_name: [gene list/set]} pairs')
 
         else:
-            for i, gs in enumerate(showGeneSets):
-                sgsTargetingSet = data['library']['gene'].apply(lambda gene: gene in showGeneSets[gs])
-                axis.scatter(table.loc[showGeneSets[gs], effectSizeLabel],
-                             -1 * np.log10(table.loc[showGeneSets[gs], pvalueLabel]),
+            for i, gs in enumerate(show_gene_sets):
+                sgs_targeting_set = data['library']['gene'].apply(lambda one_gene: one_gene in show_gene_sets[gs])
+                axis.scatter(table.loc[show_gene_sets[gs], effect_size_label],
+                             -1 * np.log10(table.loc[show_gene_sets[gs], pvalue_label]),
                              s=6, c=dark2[i], label=gs)
 
-                if labelGeneSets:
-                    for gene, row in table.loc[showGeneSets[gs]].iterrows():
+                if label_gene_sets:
+                    for gene, row in table.loc[show_gene_sets[gs]].iterrows():
                         if transcripts:
                             gene = ', '.join(gene)
 
-                        axis.text(row[effectSizeLabel], -1 * np.log10(row[pvalueLabel]), gene, fontsize=6,
-                                  horizontalalignment='left' if row[effectSizeLabel] > 0 else 'right',
+                        axis.text(row[effect_size_label], -1 * np.log10(row[pvalue_label]), gene, fontsize=6,
+                                  horizontalalignment='left' if row[effect_size_label] > 0 else 'right',
                                   verticalalignment='center')
 
-    plotGrid(axis, vert_origin=True, horiz_origin=False, unity=False)
+    plot_grid(axis, vert_origin=True, horiz_origin=False, unity=False)
 
-    ymax = np.ceil(max(yGenes)) * 1.02
-    xmin = min(xGenes) * 1.05
-    xmax = max(xGenes) * 1.05
+    ymax = np.ceil(max(y_genes)) * 1.02
+    xmin = min(x_genes) * 1.05
+    xmax = max(x_genes) * 1.05
 
     axis.plot(np.linspace(xmin, xmax, 1000),
-              np.abs(hitThreshold / np.linspace(xmin / pseudoStd, xmax / pseudoStd, 1000)), 'k--', lw=.5)
+              np.abs(hit_threshold / np.linspace(xmin / pseudo_std, xmax / pseudo_std, 1000)), 'k--', lw=.5)
 
     axis.set_xlim((xmin, xmax))
     axis.set_ylim((0, ymax))
 
     axis.set_xlabel(
-        '{3} {0} {1} ({2})'.format(phenotype, replicate, effectSizeLabel, 'gene' if not transcripts else 'transcript'),
+        '{3} {0} {1} ({2})'.format(phenotype, replicate, effect_size_label, 'gene' if not transcripts else 'transcript'),
         fontsize=8)
-    axis.set_ylabel('-log10 {0}'.format(pvalueLabel, fontsize=8))
+    axis.set_ylabel('-log10 {0}'.format(pvalue_label, fontsize=8))
 
     plt.legend(loc='best', fontsize=6, handletextpad=0.005)
 
     plt.tight_layout()
-    return displayFigure(fig, 'volcano_plot')
+    return display_figure(fig, 'volcano_plot')
 
 
 ##utility functions
-def checkOptions(data, graphType, optionTuple):
-    if optionTuple[0] == None or optionTuple[1] == None:
-        listOptions(data, graphType)
+def check_options(data, graph_type, option_tuple):
+    if option_tuple[0] is None or option_tuple[1] is None:
+        list_options(data, graph_type)
         return False
 
-    if graphType == 'counts':
-        colTups = set([colname[:2] for colname, col in data['counts'].items()])
-    elif graphType == 'phenotypes':
-        colTups = set([colname[:2] for colname, col in data['phenotypes'].items()])
-    elif graphType == 'genes':
-        colTups = set([colname[:2] for colname, col in data['gene scores'].items()])
+    if graph_type == 'counts':
+        col_tups = set([colname[:2] for colname, col in data['counts'].items()])
+    elif graph_type == 'phenotypes':
+        col_tups = set([colname[:2] for colname, col in data['phenotypes'].items()])
+    elif graph_type == 'genes':
+        col_tups = set([colname[:2] for colname, col in data['gene scores'].items()])
     else:
         print('Graph type not recognized')
         return False
 
-    if optionTuple in colTups:
+    if option_tuple in col_tups:
         return True
     else:
-        print('{0} {1} not recognized'.format(optionTuple[0], optionTuple[1]))
-        listOptions(data, graphType)
+        print('{0} {1} not recognized'.format(option_tuple[0], option_tuple[1]))
+        list_options(data, graph_type)
         return False
 
 
-def listOptions(data, graphType):
-    if graphType == 'counts':
+def list_options(data, graph_type):
+    if graph_type == 'counts':
         print('Condition and Replicate options are:')
         print('\n'.join(['{0:15}\t{1}'.format(colname[0], colname[1]) for colname, col in data['counts'].items()]))
 
-    elif graphType == 'phenotypes':
+    elif graph_type == 'phenotypes':
         print('Phenotype and Replicate options are:')
         print('\n'.join(['{0:15}\t{1}'.format(colname[0], colname[1]) for colname, col in data['phenotypes'].items()]))
 
-    elif graphType == 'genes':
-        colTups = sorted(list(set([colname[:2] for colname, col in data['gene scores'].items()])))
+    elif graph_type == 'genes':
+        col_tups = sorted(list(set([colname[:2] for colname, col in data['gene scores'].items()])))
         print('Phenotype and Replicate options are:')
-        print('\n'.join(['{0:15}\t{1}'.format(colname[0], colname[1]) for colname in colTups]))
+        print('\n'.join(['{0:15}\t{1}'.format(colname[0], colname[1]) for colname in col_tups]))
 
     else:
         print('Graph type not recognized')
 
 
-def getEffectSizeLabel(table):
-    effectColLabels = [colname for colname, col in table.items() if colname[:7] == 'average']
+def get_effect_size_label(table):
+    effect_col_labels = [colname for colname, col in table.items() if colname[:7] == 'average']
 
-    if len(effectColLabels) == 0:
+    if len(effect_col_labels) == 0:
         print('No gene effect size data columns found')
         return None
 
-    elif len(effectColLabels) > 1:
-        print('Multiple effect size data columns found, please specifiy one: ' + ', '.join(effectColLabels))
+    elif len(effect_col_labels) > 1:
+        print('Multiple effect size data columns found, please specifiy one: ' + ', '.join(effect_col_labels))
         return None
 
     else:
-        return effectColLabels[0]
+        return effect_col_labels[0]
 
 
-def getPvalueLabel(table):
-    pvalColLabels = [colname for colname, col in table.items() if colname == 'Mann-Whitney p-value']
+def get_pvalue_label(table):
+    pval_col_labels = [colname for colname, col in table.items() if colname == 'Mann-Whitney p-value']
 
-    if len(pvalColLabels) == 0:
+    if len(pval_col_labels) == 0:
         print('No p-value data columns found')
         return None
 
-    elif len(pvalColLabels) > 1:
+    elif len(pval_col_labels) > 1:
         print('Multiple p-value data columns found, please specifiy one: ' + ', '.join(effectColLabels))
         return None
 
     else:
-        return pvalColLabels[0]
+        return pval_col_labels[0]
 
 
-def displayFigure(fig, savetitle=''):
+def display_figure(fig, savetitle=''):
     if plotWithPylab:
         plt.show(fig)
 
-    if plotDirectory != None:
-        figNums = [int(fileName.split('_fig_')[0]) for fileName in os.listdir(plotDirectory) if
+    if plotDirectory is not None:
+        fig_nums = [int(fileName.split('_fig_')[0]) for fileName in os.listdir(plotDirectory) if
                    len(fileName.split('_fig_')) >= 2]
-        if len(figNums) == 0:
-            nextFigNum = 0
+        if len(fig_nums) == 0:
+            next_fig_num = 0
         else:
-            nextFigNum = max(figNums) + 1
+            next_fig_num = max(fig_nums) + 1
 
-        fullTitle = os.path.join(plotDirectory, '{0:03d}_fig_{1}.{2}'.format(nextFigNum, savetitle, imageExtension))
-        print(fullTitle)
-        fig.savefig(fullTitle, dpi=1000)
+        full_title = os.path.join(plotDirectory, '{0:03d}_fig_{1}.{2}'.format(next_fig_num, savetitle, imageExtension))
+        print(full_title)
+        fig.savefig(full_title, dpi=1000)
         plt.close(fig)
 
-        return fullTitle
+        return full_title
 
-    if plotDirectory == None and not plotWithPylab:
+    if plotDirectory is None and not plotWithPylab:
         print('Must be in pylab and/or set a plot directory to display figures')
 
         plt.close(fig)
 
 
-def changeDisplayFigureSettings(newDirectory=None, newImageExtension='png', newPlotWithPylab=True, newFigureScale=1):
+def change_display_figure_settings(new_directory=None, new_image_extension='png', new_plot_with_pylab=True,
+                                   new_figure_scale=1):
     global plotDirectory
-    plotDirectory = newDirectory
+    plotDirectory = new_directory
 
     global imageExtension
-    imageExtension = newImageExtension
+    imageExtension = new_image_extension
 
     global plotWithPylab
-    plotWithPylab = newPlotWithPylab
+    plotWithPylab = new_plot_with_pylab
 
     global figureScale
-    figureScale = newFigureScale
+    figureScale = new_figure_scale
 
 
-def plotGrid(axis, vert_origin=True, horiz_origin=True, unity=True):
+def plot_grid(axis, vert_origin=True, horiz_origin=True, unity=True):
     ylim = axis.get_ylim()
     xlim = axis.get_xlim()
     if vert_origin:
@@ -607,7 +618,7 @@ def plotGrid(axis, vert_origin=True, horiz_origin=True, unity=True):
 
 
 # adapted from http://nbviewer.ipython.org/github/cs109/content/blob/master/lec_03_statistical_graphs.ipynb
-def cleanAxes(axis, top=False, right=False, bottom=True, left=True):
+def clean_axes(axis, top=False, right=False, bottom=True, left=True):
     axis.spines['top'].set_visible(top)
     axis.spines['right'].set_visible(right)
     axis.spines['left'].set_visible(left)

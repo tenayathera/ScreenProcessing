@@ -5,19 +5,19 @@ import fnmatch
 
 # Parse and validate the input of an experiment config file
 # output a dict with all of the parameters needed to process experiments
-def parseExptConfig(configFile, librariesToSublibrariesDict):
+def parse_expt_config(config_file, libraries_to_sublibraries_dict):
     parser = SafeConfigParser()
-    results = parser.read(configFile)
+    results = parser.read(config_file)
     if len(results) == 0:
         return None, 1, 'Experiment config file not found'
 
     # output variables
-    paramDict = dict()
-    exitStatus = 0
-    warningString = ''
+    param_dict = dict()
+    exit_status = 0
+    warning_string = ''
 
     ##check all sections
-    expectedSections = set(['experiment_settings',
+    expected_sections = set(['experiment_settings',
                             'library_settings',
                             'counts_files',
                             'filter_settings',
@@ -25,369 +25,368 @@ def parseExptConfig(configFile, librariesToSublibrariesDict):
                             'growth_values',
                             'gene_analysis'])
 
-    parsedSections = set(parser.sections())
+    parsed_sections = set(parser.sections())
 
-    if len(expectedSections) != len(parsedSections) and len(expectedSections) != len(
-            expectedSections.intersection(parsedSections)):
-        return paramDict, 1, 'Config file does not have all required sections or has extraneous sections!\nExpected:' + ','.join(
-            expectedSections) + '\nFound:' + ','.join(parsedSections)
+    if len(expected_sections) != len(parsed_sections) and len(expected_sections) != len(
+            expected_sections.intersection(parsed_sections)):
+        return param_dict, 1, 'Config file does not have all required sections or has extraneous sections!\nExpected:' + ','.join(
+            expected_sections) + '\nFound:' + ','.join(parsed_sections)
 
     ##experiment settings
     if parser.has_option('experiment_settings', 'output_folder'):
-        paramDict['output_folder'] = parser.get('experiment_settings',
+        param_dict['output_folder'] = parser.get('experiment_settings',
                                                 'output_folder')  # ways to check this is a valid path?
     else:
-        warningString += 'No output folder specified, defaulting to current directory\n.'
-        paramDict['output_folder'] = os.curdir()
+        warning_string += 'No output folder specified, defaulting to current directory\n.'
+        param_dict['output_folder'] = os.curdir()
 
     if parser.has_option('experiment_settings', 'experiment_name'):
-        paramDict['experiment_name'] = parser.get('experiment_settings', 'experiment_name')
+        param_dict['experiment_name'] = parser.get('experiment_settings', 'experiment_name')
     else:
-        warningString += 'No experiment name specified, defaulting to \'placeholder_expt_name\'\n.'
-        paramDict['experiment_name'] = 'placeholder_expt_name'
+        warning_string += 'No experiment name specified, defaulting to \'placeholder_expt_name\'\n.'
+        param_dict['experiment_name'] = 'placeholder_expt_name'
 
     ##library settings
-    libraryDict = librariesToSublibrariesDict
+    library_dict = libraries_to_sublibraries_dict
     if parser.has_option('library_settings', 'library'):
-        parsedLibrary = parser.get('library_settings', 'library')
+        parsed_library = parser.get('library_settings', 'library')
 
-        if parsedLibrary.lower() in libraryDict:
-            paramDict['library'] = parsedLibrary.lower()
+        if parsed_library.lower() in library_dict:
+            param_dict['library'] = parsed_library.lower()
         else:
-            warningString += 'Library name \"%s\" not recognized\n' % parsedLibrary
-            exitStatus += 1
+            warning_string += 'Library name \"%s\" not recognized\n' % parsed_library
+            exit_status += 1
 
     else:
-        warningString += 'No library specified\n'
-        exitStatus += 1
-        parsedLibrary = ''
+        warning_string += 'No library specified\n'
+        exit_status += 1
 
-    if 'library' in paramDict:
+    if 'library' in param_dict:
         if parser.has_option('library_settings', 'sublibraries'):
-            parsedSubList = parser.get('library_settings', 'sublibraries').strip().split('\n')
+            parsed_sub_list = parser.get('library_settings', 'sublibraries').strip().split('\n')
 
-            paramDict['sublibraries'] = []
+            param_dict['sublibraries'] = []
 
-            for sub in parsedSubList:
+            for sub in parsed_sub_list:
                 sub = sub.lower()
-                if sub in libraryDict[paramDict['library']]:
-                    paramDict['sublibraries'].append(sub)
+                if sub in library_dict[param_dict['library']]:
+                    param_dict['sublibraries'].append(sub)
 
                 else:
-                    warningString += 'Sublibrary %s not recognized\n' % sub
+                    warning_string += 'Sublibrary %s not recognized\n' % sub
 
         else:
-            paramDict['sublibraries'] = libraryDict[paramDict['library']]
+            param_dict['sublibraries'] = library_dict[param_dict['library']]
 
     ##counts files
     if parser.has_option('counts_files', 'counts_file_string'):
-        countsFileString = parser.get('counts_files', 'counts_file_string').strip()
+        counts_file_string = parser.get('counts_files', 'counts_file_string').strip()
 
-        paramDict['counts_file_list'] = []
+        param_dict['counts_file_list'] = []
 
-        for stringLine in countsFileString.split('\n'):
-            stringLine = stringLine.strip()
+        for string_line in counts_file_string.split('\n'):
+            string_line = string_line.strip()
 
-            if len(stringLine.split(':')) != 2 or len(stringLine.split('|')) != 2:
-                warningString += 'counts file entry could not be parsed: ' + stringLine + '\n'
-                exitStatus += 1
+            if len(string_line.split(':')) != 2 or len(string_line.split('|')) != 2:
+                warning_string += 'counts file entry could not be parsed: ' + string_line + '\n'
+                exit_status += 1
 
             else:
-                parsedPath = stringLine.split(':')[0]
+                parsed_path = string_line.split(':')[0]
 
-                if os.path.isfile(parsedPath) == False:
-                    warningString += 'Counts file not found: ' + parsedPath + '\n'
-                    exitStatus += 1
+                if not os.path.isfile(parsed_path):
+                    warning_string += 'Counts file not found: ' + parsed_path + '\n'
+                    exit_status += 1
 
-                condition, replicate = stringLine.split(':')[1].split('|')
+                condition, replicate = string_line.split(':')[1].split('|')
 
-                paramDict['counts_file_list'].append((condition, replicate, parsedPath))
+                param_dict['counts_file_list'].append((condition, replicate, parsed_path))
 
     else:
-        warningString += 'No counts files entered\n'
-        exitStatus += 1
+        warning_string += 'No counts files entered\n'
+        exit_status += 1
 
     ##filter settings
-    filterOptions = ['either', 'both']
+    filter_options = ['either', 'both']
     if parser.has_option('filter_settings', 'filter_type') and parser.get('filter_settings',
-                                                                          'filter_type').lower() in filterOptions:
-        paramDict['filter_type'] = parser.get('filter_settings', 'filter_type').lower()
+                                                                          'filter_type').lower() in filter_options:
+        param_dict['filter_type'] = parser.get('filter_settings', 'filter_type').lower()
     else:
-        warningString += 'Filter type not set or not recognized, defaulting to \'either\'\n'
-        paramDict['filter_type'] = 'either'
+        warning_string += 'Filter type not set or not recognized, defaulting to \'either\'\n'
+        param_dict['filter_type'] = 'either'
 
     if parser.has_option('filter_settings', 'minimum_reads'):
         try:
-            paramDict['minimum_reads'] = parser.getint('filter_settings', 'minimum_reads')
+            param_dict['minimum_reads'] = parser.getint('filter_settings', 'minimum_reads')
         except ValueError:
-            warningString += 'Minimum read value not an integer, defaulting to 0\n'  # recommended value is 50 but seems arbitrary to default to that
-            paramDict['minimum_reads'] = 0
+            warning_string += 'Minimum read value not an integer, defaulting to 0\n'  # recommended value is 50 but seems arbitrary to default to that
+            param_dict['minimum_reads'] = 0
     else:
-        warningString += 'Minimum read value not found, defaulting to 0\n'  # recommended value is 50 but seems arbitrary to default to that
-        paramDict['minimum_reads'] = 0
+        warning_string += 'Minimum read value not found, defaulting to 0\n'  # recommended value is 50 but seems arbitrary to default to that
+        param_dict['minimum_reads'] = 0
 
     ##sgRNA Analysis
     if parser.has_option('sgrna_analysis', 'condition_string'):
-        conditionString = parser.get('sgrna_analysis', 'condition_string').strip()
+        condition_string = parser.get('sgrna_analysis', 'condition_string').strip()
 
-        paramDict['condition_tuples'] = []
+        param_dict['condition_tuples'] = []
 
-        if 'counts_file_list' in paramDict:
-            expectedConditions = set(zip(*paramDict['counts_file_list'])[0])
+        if 'counts_file_list' in param_dict:
+            expected_conditions = set(zip(*param_dict['counts_file_list'])[0])
         else:
-            expectedConditions = []
+            expected_conditions = []
 
-        enteredConditions = set()
+        entered_conditions = set()
 
-        for conditionStringLine in conditionString.split('\n'):
-            conditionStringLine = conditionStringLine.strip()
+        for condition_string_line in condition_string.split('\n'):
+            condition_string_line = condition_string_line.strip()
 
-            if len(conditionStringLine.split(':')) != 3:
-                warningString += 'Phenotype condition line not understood: ' + conditionStringLine + '\n'
-                exitStatus += 1
+            if len(condition_string_line.split(':')) != 3:
+                warning_string += 'Phenotype condition line not understood: ' + condition_string_line + '\n'
+                exit_status += 1
             else:
-                phenotype, condition1, condition2 = conditionStringLine.split(':')
+                phenotype, condition1, condition2 = condition_string_line.split(':')
 
-                if condition1 not in expectedConditions or condition2 not in expectedConditions:
-                    warningString += 'One of the conditions entered does not correspond to a counts file: ' + conditionStringLine + '\n'
-                    exitStatus += 1
+                if condition1 not in expected_conditions or condition2 not in expected_conditions:
+                    warning_string += 'One of the conditions entered does not correspond to a counts file: ' + condition_string_line + '\n'
+                    exit_status += 1
                 else:
-                    paramDict['condition_tuples'].append((phenotype, condition1, condition2))
-                    enteredConditions.add(condition1)
-                    enteredConditions.add(condition2)
+                    param_dict['condition_tuples'].append((phenotype, condition1, condition2))
+                    entered_conditions.add(condition1)
+                    entered_conditions.add(condition2)
 
-        if len(paramDict['condition_tuples']) == 0:
-            warningString += 'No phenotype score/condition pairs found\n'
-            exitStatus += 1
+        if len(param_dict['condition_tuples']) == 0:
+            warning_string += 'No phenotype score/condition pairs found\n'
+            exit_status += 1
 
-        unusedConditions = list(expectedConditions - enteredConditions)
-        if len(unusedConditions) > 0:
-            warningString += 'Some conditions assigned to counts files will not be incorporated in sgRNA analysis:\n' \
-                             + ','.join(unusedConditions) + '\n'
+        unused_conditions = list(expected_conditions - entered_conditions)
+        if len(unused_conditions) > 0:
+            warning_string += 'Some conditions assigned to counts files will not be incorporated in sgRNA analysis:\n' \
+                             + ','.join(unused_conditions) + '\n'
 
     else:
-        warningString += 'No phenotype score/condition pairs entered\n'
-        exitStatus += 1
+        warning_string += 'No phenotype score/condition pairs entered\n'
+        exit_status += 1
 
-    pseudocountOptions = ['zeros only', 'all values', 'filter out']
+    pseudocount_options = ['zeros only', 'all values', 'filter out']
     if parser.has_option('sgrna_analysis', 'pseudocount_behavior') and parser.get('sgrna_analysis',
-                                                                                  'pseudocount_behavior').lower() in pseudocountOptions:
-        paramDict['pseudocount_behavior'] = parser.get('sgrna_analysis', 'pseudocount_behavior').lower()
+                                                                                  'pseudocount_behavior').lower() in pseudocount_options:
+        param_dict['pseudocount_behavior'] = parser.get('sgrna_analysis', 'pseudocount_behavior').lower()
     else:
-        warningString += 'Pseudocount behavior not set or not recognized, defaulting to \'zeros only\'\n'
-        paramDict['pseudocount_behavior'] = 'zeros only'
+        warning_string += 'Pseudocount behavior not set or not recognized, defaulting to \'zeros only\'\n'
+        param_dict['pseudocount_behavior'] = 'zeros only'
 
     if parser.has_option('sgrna_analysis', 'pseudocount'):
         try:
-            paramDict['pseudocount'] = parser.getfloat('sgrna_analysis', 'pseudocount')
+            param_dict['pseudocount'] = parser.getfloat('sgrna_analysis', 'pseudocount')
         except ValueError:
-            warningString += 'Pseudocount value not an number, defaulting to 0.1\n'
-            paramDict['pseudocount'] = 0.1
+            warning_string += 'Pseudocount value not an number, defaulting to 0.1\n'
+            param_dict['pseudocount'] = 0.1
     else:
-        warningString += 'Pseudocount value not found, defaulting to 0.1\n'
-        paramDict['pseudocount'] = 0.1
+        warning_string += 'Pseudocount value not found, defaulting to 0.1\n'
+        param_dict['pseudocount'] = 0.1
 
     ##Growth Values
     if parser.has_option('growth_values', 'growth_value_string') and len(
             parser.get('growth_values', 'growth_value_string').strip()) != 0:
-        growthValueString = parser.get('growth_values', 'growth_value_string').strip()
+        growth_value_string = parser.get('growth_values', 'growth_value_string').strip()
 
-        if 'condition_tuples' in paramDict and 'counts_file_list' in paramDict:
-            expectedComparisons = set(zip(*paramDict['condition_tuples'])[0])
-            expectedReplicates = set(zip(*paramDict['counts_file_list'])[1])
+        if 'condition_tuples' in param_dict and 'counts_file_list' in param_dict:
+            expected_comparisons = set(zip(*param_dict['condition_tuples'])[0])
+            expected_replicates = set(zip(*param_dict['counts_file_list'])[1])
 
-            expectedTupleList = []
+            expected_tuple_list = []
 
-            for comp in expectedComparisons:
-                for rep in expectedReplicates:
-                    expectedTupleList.append((comp, rep))
+            for comp in expected_comparisons:
+                for rep in expected_replicates:
+                    expected_tuple_list.append((comp, rep))
         else:
-            expectedTupleList = []
+            expected_tuple_list = []
 
-        enteredTupleList = []
-        growthValueTuples = []
+        entered_tuple_list = []
+        growth_value_tuples = []
 
-        for growthValueLine in growthValueString.split('\n'):
-            growthValueLine = growthValueLine.strip()
+        for growth_value_line in growth_value_string.split('\n'):
+            growth_value_line = growth_value_line.strip()
 
-            linesplit = growthValueLine.split(':')
+            linesplit = growth_value_line.split(':')
 
             if len(linesplit) != 3:
-                warningString += 'Growth value line not understood: ' + growthValueLine + '\n'
-                exitStatus += 1
+                warning_string += 'Growth value line not understood: ' + growth_value_line + '\n'
+                exit_status += 1
                 continue
 
             comparison = linesplit[0]
             replicate = linesplit[1]
 
             try:
-                growthVal = float(linesplit[2])
+                growth_val = float(linesplit[2])
             except ValueError:
-                warningString += 'Growth value not a number: ' + growthValueLine + '\n'
-                exitStatus += 1
+                warning_string += 'Growth value not a number: ' + growth_value_line + '\n'
+                exit_status += 1
                 continue
 
-            curTup = (comparison, replicate)
-            if curTup in expectedTupleList:
-                if curTup not in enteredTupleList:
-                    enteredTupleList.append(curTup)
-                    growthValueTuples.append((comparison, replicate, growthVal))
+            cur_tup = (comparison, replicate)
+            if cur_tup in expected_tuple_list:
+                if cur_tup not in entered_tuple_list:
+                    entered_tuple_list.append(cur_tup)
+                    growth_value_tuples.append((comparison, replicate, growth_val))
 
                 else:
-                    warningString += ':'.join(curTup) + ' has multiple growth values entered\n'
-                    exitStatus += 1
+                    warning_string += ':'.join(cur_tup) + ' has multiple growth values entered\n'
+                    exit_status += 1
             else:
-                warningString += ':'.join(
-                    curTup) + ' was not expected given the specified counts file assignments and sgRNA phenotypes\n'
-                exitStatus += 1
+                warning_string += ':'.join(
+                    cur_tup) + ' was not expected given the specified counts file assignments and sgRNA phenotypes\n'
+                exit_status += 1
 
         # because we enforced no duplicates or unexpected values these should match up unless there were values not entered
         # require all growth values to be explictly entered if some were
-        if len(enteredTupleList) != len(expectedTupleList):
-            warningString += 'Growth values were not entered for all expected comparisons/replicates. Expected: ' + \
-                             ','.join([':'.join(tup) for tup in expectedTupleList]) + '\nEntered: ' + \
-                             ','.join([':'.join(tup) for tup in enteredTupleList]) + '\n'
-            exitStatus += 1
+        if len(entered_tuple_list) != len(expected_tuple_list):
+            warning_string += 'Growth values were not entered for all expected comparisons/replicates. Expected: ' + \
+                             ','.join([':'.join(tup) for tup in expected_tuple_list]) + '\nEntered: ' + \
+                             ','.join([':'.join(tup) for tup in entered_tuple_list]) + '\n'
+            exit_status += 1
         else:
-            paramDict['growth_value_tuples'] = growthValueTuples
+            param_dict['growth_value_tuples'] = growth_value_tuples
 
     else:
-        warningString += 'No growth values--all phenotypes will be reported as log2enrichments\n'
+        warning_string += 'No growth values--all phenotypes will be reported as log2enrichments\n'
 
-        paramDict['growth_value_tuples'] = []
+        param_dict['growth_value_tuples'] = []
 
-        if 'condition_tuples' in paramDict and 'counts_file_list' in paramDict:
-            expectedComparisons = set(zip(*paramDict['condition_tuples'])[0])
-            expectedReplicates = set(zip(*paramDict['counts_file_list'])[1])
+        if 'condition_tuples' in param_dict and 'counts_file_list' in param_dict:
+            expected_comparisons = set(zip(*param_dict['condition_tuples'])[0])
+            expected_replicates = set(zip(*param_dict['counts_file_list'])[1])
 
-            for comp in expectedComparisons:
-                for rep in expectedReplicates:
-                    paramDict['growth_value_tuples'].append((comp, rep, 1))
+            for comp in expected_comparisons:
+                for rep in expected_replicates:
+                    param_dict['growth_value_tuples'].append((comp, rep, 1))
 
     ##Gene Analysis
     if parser.has_option('gene_analysis', 'collapse_to_transcripts'):
         try:
-            paramDict['collapse_to_transcripts'] = parser.getboolean('gene_analysis', 'collapse_to_transcripts')
+            param_dict['collapse_to_transcripts'] = parser.getboolean('gene_analysis', 'collapse_to_transcripts')
         except ValueError:
-            warningString += 'Collapse to transcripts entry not a recognized boolean value\n'
-            exitStatus += 1
+            warning_string += 'Collapse to transcripts entry not a recognized boolean value\n'
+            exit_status += 1
     else:
-        paramDict['collapse_to_transcripts'] = True
-        warningString += 'Collapse to transcripts defaulting to True\n'
+        param_dict['collapse_to_transcripts'] = True
+        warning_string += 'Collapse to transcripts defaulting to True\n'
 
     # pseudogene parameters
     if parser.has_option('gene_analysis', 'generate_pseudogene_dist'):
-        paramDict['generate_pseudogene_dist'] = parser.get('gene_analysis', 'generate_pseudogene_dist').lower()
+        param_dict['generate_pseudogene_dist'] = parser.get('gene_analysis', 'generate_pseudogene_dist').lower()
 
-        if paramDict['generate_pseudogene_dist'] not in ['auto', 'manual', 'off']:
-            warningString += 'Generate pseudogene dist entry not a recognized option\n'
-            exitStatus += 1
+        if param_dict['generate_pseudogene_dist'] not in ['auto', 'manual', 'off']:
+            warning_string += 'Generate pseudogene dist entry not a recognized option\n'
+            exit_status += 1
     else:
-        paramDict['generate_pseudogene_dist'] = False
-        warningString += 'Generate pseudogene dist defaulting to False\n'
+        param_dict['generate_pseudogene_dist'] = False
+        warning_string += 'Generate pseudogene dist defaulting to False\n'
 
-    if 'generate_pseudogene_dist' in paramDict and paramDict['generate_pseudogene_dist'] == 'manual':
+    if 'generate_pseudogene_dist' in param_dict and param_dict['generate_pseudogene_dist'] == 'manual':
         if parser.has_option('gene_analysis', 'pseudogene_size'):
             try:
-                paramDict['pseudogene_size'] = parser.getint('gene_analysis', 'pseudogene_size')
+                param_dict['pseudogene_size'] = parser.getint('gene_analysis', 'pseudogene_size')
             except ValueError:
-                warningString += 'Pseudogene size entry not a recognized integer value\n'
-                exitStatus += 1
+                warning_string += 'Pseudogene size entry not a recognized integer value\n'
+                exit_status += 1
         else:
-            warningString += 'No pseudogene size provided\n'
-            exitStatus += 1
+            warning_string += 'No pseudogene size provided\n'
+            exit_status += 1
 
         if parser.has_option('gene_analysis', 'num_pseudogenes'):
             try:
-                paramDict['num_pseudogenes'] = parser.getint('gene_analysis', 'num_pseudogenes')
+                param_dict['num_pseudogenes'] = parser.getint('gene_analysis', 'num_pseudogenes')
             except ValueError:
-                warningString += 'Pseudogene number entry not a recognized integer value\n'
-                exitStatus += 1
+                warning_string += 'Pseudogene number entry not a recognized integer value\n'
+                exit_status += 1
         else:
-            warningString += 'No pseudogene size provided\n'
+            warning_string += 'No pseudogene size provided\n'
 
     # list possible analyses in param dict as dictionary with keys = analysis and values = analysis-specific params
 
-    paramDict['analyses'] = dict()
+    param_dict['analyses'] = dict()
 
     # analyze by average of best n
     if parser.has_option('gene_analysis', 'calculate_ave'):
         try:
-            if parser.getboolean('gene_analysis', 'calculate_ave') == True:
-                paramDict['analyses']['calculate_ave'] = []
+            if parser.getboolean('gene_analysis', 'calculate_ave'):
+                param_dict['analyses']['calculate_ave'] = []
         except ValueError:
-            warningString += 'Calculate ave entry not a recognized boolean value\n'
-            exitStatus += 1
+            warning_string += 'Calculate ave entry not a recognized boolean value\n'
+            exit_status += 1
 
-        if 'calculate_ave' in paramDict['analyses']:
+        if 'calculate_ave' in param_dict['analyses']:
             if parser.has_option('gene_analysis', 'best_n'):
                 try:
-                    paramDict['analyses']['calculate_ave'].append(parser.getint('gene_analysis', 'best_n'))
+                    param_dict['analyses']['calculate_ave'].append(parser.getint('gene_analysis', 'best_n'))
                 except ValueError:
-                    warningString += 'Best_n entry not a recognized integer value\n'
-                    exitStatus += 1
+                    warning_string += 'Best_n entry not a recognized integer value\n'
+                    exit_status += 1
             else:
-                warningString += 'No best_n value provided for average analysis function\n'
-                exitStatus += 1
+                warning_string += 'No best_n value provided for average analysis function\n'
+                exit_status += 1
     else:
-        warningString += 'Best n average analysis not specified, defaulting to False\n'
+        warning_string += 'Best n average analysis not specified, defaulting to False\n'
 
     # analyze by Mann-Whitney
     if parser.has_option('gene_analysis', 'calculate_mw'):
         try:
-            if parser.getboolean('gene_analysis', 'calculate_mw') == True:
-                paramDict['analyses']['calculate_mw'] = []
+            if parser.getboolean('gene_analysis', 'calculate_mw'):
+                param_dict['analyses']['calculate_mw'] = []
         except ValueError:
-            warningString += 'Calculate Mann-Whitney entry not a recognized boolean value\n'
-            exitStatus += 1
+            warning_string += 'Calculate Mann-Whitney entry not a recognized boolean value\n'
+            exit_status += 1
 
     # analyze by K-S, skipping for now
 
     # analyze by nth best sgRNA
     if parser.has_option('gene_analysis', 'calculate_nth'):
         try:
-            if parser.getboolean('gene_analysis', 'calculate_nth') == True:
-                paramDict['analyses']['calculate_nth'] = []
+            if parser.getboolean('gene_analysis', 'calculate_nth'):
+                param_dict['analyses']['calculate_nth'] = []
         except ValueError:
-            warningString += 'Calculate best Nth sgRNA entry not a recognized boolean value\n'
-            exitStatus += 1
+            warning_string += 'Calculate best Nth sgRNA entry not a recognized boolean value\n'
+            exit_status += 1
 
-        if 'calculate_nth' in paramDict['analyses']:
+        if 'calculate_nth' in param_dict['analyses']:
             if parser.has_option('gene_analysis', 'nth'):
                 try:
-                    paramDict['analyses']['calculate_nth'].append(parser.getint('gene_analysis', 'nth'))
+                    param_dict['analyses']['calculate_nth'].append(parser.getint('gene_analysis', 'nth'))
                 except ValueError:
-                    warningString += 'Nth best sgRNA entry not a recognized integer value\n'
-                    exitStatus += 1
+                    warning_string += 'Nth best sgRNA entry not a recognized integer value\n'
+                    exit_status += 1
             else:
-                warningString += 'No Nth best value provided for that analysis function\n'
-                exitStatus += 1
+                warning_string += 'No Nth best value provided for that analysis function\n'
+                exit_status += 1
     else:
-        warningString += 'Nth best sgRNA analysis not specified, defaulting to False\n'
+        warning_string += 'Nth best sgRNA analysis not specified, defaulting to False\n'
 
-    if len(paramDict['analyses']) == 0:
-        warningString += 'No analyses selected to compute gene scores\n'  # should this raise exitStatus?
+    if len(param_dict['analyses']) == 0:
+        warning_string += 'No analyses selected to compute gene scores\n'  # should this raise exit_status?
 
-    return paramDict, exitStatus, warningString
+    return param_dict, exit_status, warning_string
 
 
 # Parse the library configuration file to get the available libraries, sublibraries, and corresponding library table files
-def parseLibraryConfig(libConfigFile):
+def parse_library_config(lib_config_file):
     parser = SafeConfigParser()
-    result = parser.read(libConfigFile)
+    result = parser.read(lib_config_file)
     if len(result) == 0:
         raise ValueError('Library config file not found')
 
-    librariesToSublibraries = dict()
-    librariesToTables = dict()
+    libraries_to_sublibraries = dict()
+    libraries_to_tables = dict()
     for library in parser.sections():
-        tableFile = parser.get(library, 'filename').strip()
-        librariesToTables[library.lower()] = tableFile
+        table_file = parser.get(library, 'filename').strip()
+        libraries_to_tables[library.lower()] = table_file
 
-        sublibraryList = parser.get(library, 'sublibraries').strip().split('\n')
-        librariesToSublibraries[library.lower()] = [sub.strip().lower() for sub in sublibraryList]
+        sublibrary_list = parser.get(library, 'sublibraries').strip().split('\n')
+        libraries_to_sublibraries[library.lower()] = [sub.strip().lower() for sub in sublibrary_list]
 
-    if len(librariesToTables) == 0:
+    if len(libraries_to_tables) == 0:
         raise ValueError('Library config file empty')
 
-    return librariesToSublibraries, librariesToTables
+    return libraries_to_sublibraries, libraries_to_tables

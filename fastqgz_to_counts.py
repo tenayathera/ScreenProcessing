@@ -11,139 +11,138 @@ import argparse
 
 ### Sequence File to Trimmed Fasta Functions ###
 
-def parallelSeqFileToCountsParallel(fastqGzFileNameList, fastaFileNameList, countFileNameList, processPool,
-                                    libraryFasta, startIndex=None, stopIndex=None, test=False):
-    if len(fastqGzFileNameList) != len(fastaFileNameList):
+def parallel_seq_file_to_counts_parallel(fastq_gz_file_name_list, fasta_file_name_list, count_file_name_list, process_pool,
+                                         libraryFasta, startIndex=None, stopIndex=None, test=False):
+    if len(fastq_gz_file_name_list) != len(fasta_file_name_list):
         raise ValueError('In and out file lists must be the same length')
 
     arglist = list(
-        zip(fastqGzFileNameList, fastaFileNameList, countFileNameList, [libraryFasta] * len(fastaFileNameList),
-            [startIndex] * len(fastaFileNameList), [stopIndex] * len(fastaFileNameList),
-            [test] * len(fastaFileNameList)))
+        zip(fastq_gz_file_name_list, fasta_file_name_list, count_file_name_list, [libraryFasta] * len(fasta_file_name_list),
+            [startIndex] * len(fasta_file_name_list), [stopIndex] * len(fasta_file_name_list),
+            [test] * len(fasta_file_name_list)))
 
-    readsPerFile = processPool.map(seqFileToCountsWrapper, arglist)
+    reads_per_file = process_pool.map(seq_file_to_counts_wrapper, arglist)
 
-    return list(zip(countFileNameList, readsPerFile))
-
-
-def seqFileToCountsWrapper(arg):
-    return seqFileToCounts(*arg)
+    return list(zip(count_file_name_list, reads_per_file))
 
 
-def seqFileToCounts(infileName, fastaFileName, countFileName, libraryFasta, startIndex=None, stopIndex=None,
-                    test=False):
-    printNow('Processing %s' % infileName)
+def seq_file_to_counts_wrapper(arg):
+    return seq_file_to_counts(*arg)
 
-    fileType = None
+
+def seq_file_to_counts(infile_name, fasta_file_name, count_file_name, library_fasta,
+                       start_index=None, stop_index=None, test=False):
+    print_now('Processing %s' % infile_name)
+
+    file_type = None
 
     for fileTup in acceptedFileTypes:
-        if fnmatch.fnmatch(infileName, fileTup[0]):
-            fileType = fileTup[1]
+        if fnmatch.fnmatch(infile_name, fileTup[0]):
+            file_type = fileTup[1]
             break
 
-    if fileType == 'fqgz':
-        linesPerRead = 4
-        infile = gzip.open(infileName)
-    elif fileType == 'fq':
-        linesPerRead = 4
-        infile = open(infileName)
-    elif fileType == 'fa':
-        linesPerRead = 2
-        infile = open(infileName)
+    if file_type == 'fqgz':
+        infile = gzip.open(infile_name)
+    elif file_type == 'fq':
+        infile = open(infile_name)
+    elif file_type == 'fa':
+        infile = open(infile_name)
     else:
         raise ValueError('Sequencing file type not recognized!')
 
-    seqToIdDict, idsToReadcountDict, expectedReadLength = parseLibraryFasta(libraryFasta)
+    seq_to_id_dict, ids_to_readcount_dict, expected_read_length = parseLibraryFasta(library_fasta)
 
-    curRead = 0
-    numAligning = 0
+    cur_read = 0
+    num_aligning = 0
 
-    with open(fastaFileName, 'w') as unalignedFile:
+    with open(fasta_file_name, 'w') as unalignedFile:
         for i, fastqLine in enumerate(infile):
             if i % 4 != 1:
                 continue
 
             else:
-                seq = fastqLine.strip()[startIndex:stopIndex]
+                seq = fastqLine.strip()[start_index:stop_index]
 
-                if i == 1 and len(seq) != expectedReadLength:
+                if i == 1 and len(seq) != expected_read_length:
                     raise ValueError('Trimmed read length does not match expected reference read length')
 
-                if seq in seqToIdDict:
-                    for seqId in seqToIdDict[seq]:
-                        idsToReadcountDict[seqId] += 1
+                if seq in seq_to_id_dict:
+                    for seqId in seq_to_id_dict[seq]:
+                        ids_to_readcount_dict[seqId] += 1
 
-                    numAligning += 1
+                    num_aligning += 1
 
                 else:
                     unalignedFile.write('>%d\n%s\n' % (i, seq))
 
-                curRead += 1
+                cur_read += 1
 
                 # allow test runs using only the first N reads from the fastq file
-                if test and curRead >= testLines:
+                if test and cur_read >= testLines:
                     break
 
-    with open(countFileName, 'w') as countFile:
-        for countTup in (sorted(zip(list(idsToReadcountDict.keys()), list(idsToReadcountDict.values())))):
+    with open(count_file_name, 'w') as countFile:
+        for countTup in (sorted(zip(list(ids_to_readcount_dict.keys()), list(ids_to_readcount_dict.values())))):
             countFile.write('%s\t%d\n' % countTup)
 
-    printNow('Done processing %s' % infileName)
+    print_now('Done processing %s' % infile_name)
 
-    return curRead, numAligning, numAligning * 100.0 / curRead
+    return cur_read, num_aligning, num_aligning * 100.0 / cur_read
 
 
 ### Map File to Counts File Functions ###
 
-def parseLibraryFasta(libraryFasta):
-    seqToIds, idsToReadcounts, readLengths = dict(), dict(), []
+def parseLibraryFasta(library_fasta):
+    seq_to_ids  = dict()
+    ids_to_readcounts = dict()
+    read_lengths = []
 
-    curSeqId = ''
-    curSeq = ''
+    cur_seq_id = ''
+    cur_seq = ''
 
-    with open(libraryFasta) as infile:
+    with open(library_fasta) as infile:
         for line in infile:
             if line[0] == '>':
-                if curSeqId != '' and curSeq != '':
-                    if curSeq not in seqToIds:
-                        seqToIds[curSeq] = []
-                    seqToIds[curSeq].append(curSeqId)
+                if cur_seq_id != '' and cur_seq != '':
+                    if cur_seq not in seq_to_ids:
+                        seq_to_ids[cur_seq] = []
+                    seq_to_ids[cur_seq].append(cur_seq_id)
 
-                    idsToReadcounts[curSeqId] = 0
+                    ids_to_readcounts[cur_seq_id] = 0
 
-                    readLengths.append(len(curSeq))
+                    read_lengths.append(len(cur_seq))
 
-                curSeqId = line.strip()[1:]
-                curSeq = ''
+                cur_seq_id = line.strip()[1:]
+                cur_seq = ''
 
             else:
-                curSeq += line.strip().upper()
+                cur_seq += line.strip().upper()
 
-    if len(seqToIds) == 0 or len(idsToReadcounts) == 0 or readLengths[0] == 0:
+    if len(seq_to_ids) == 0 or len(ids_to_readcounts) == 0 or read_lengths[0] == 0:
         raise ValueError('library fasta could not be parsed or contains no sequences')
-    elif max(readLengths) != min(readLengths):
-        print(min(readLengths), max(readLengths))
+    elif max(read_lengths) != min(read_lengths):
+        print(min(read_lengths), max(read_lengths))
         raise ValueError('library reference sequences are of inconsistent lengths')
 
-    return seqToIds, idsToReadcounts, readLengths[0]
+    return seq_to_ids, ids_to_readcounts, read_lengths[0]
 
 
 ### Utility Functions ###
-def parseSeqFileNames(fileNameList):
-    infileList = []
-    outfileBaseList = []
+def parse_seq_file_names(file_name_list):
+    infile_list = []
+    outfile_base_list = []
 
-    for inputFileName in fileNameList:  # iterate through entered filenames for sequence files
+    for inputFileName in file_name_list:  # iterate through entered filenames for sequence files
         for filename in glob.glob(inputFileName):  # generate all possible files given wildcards
             for fileType in zip(*acceptedFileTypes)[0]:  # iterate through allowed filetypes
                 if fnmatch.fnmatch(filename, fileType):
-                    infileList.append(filename)
-                    outfileBaseList.append(os.path.split(filename)[-1].split('.')[0])
+                    infile_list.append(filename)
+                    outfile_base_list.append(os.path.split(filename)[-1].split('.')[0])
 
-    return infileList, outfileBaseList
+    return infile_list, outfile_base_list
 
 
-def makeDirectory(path):
+def make_directory(path):
     try:
         os.makedirs(path)
     except OSError:
@@ -151,8 +150,8 @@ def makeDirectory(path):
         pass
 
 
-def printNow(printInput):
-    print(printInput)
+def print_now(print_input):
+    print(print_input)
     sys.stdout.flush()
 
 
@@ -171,13 +170,17 @@ if __name__ == '__main__':
     parser.add_argument('Library_Fasta', help='Fasta file of expected library reads.')
     parser.add_argument('Out_File_Path', help='Directory where output files should be written.')
     parser.add_argument('Seq_File_Names', nargs='+',
-                        help='Name(s) of sequencing file(s). Unix wildcards can be used to select multiple files at once. The script will search for all *.fastq.gz, *.fastq, and *.fa(/fasta/fna) files with the given wildcard name.')
+                        help='Name(s) of sequencing file(s). Unix wildcards can be used to select multiple files '
+                             'at once. The script will search for all *.fastq.gz, *.fastq, and *.fa(/fasta/fna) '
+                             'files with the given wildcard name.')
 
     parser.add_argument('-p', '--processors', type=int, default=1)
     parser.add_argument('--trim_start', type=int)
     parser.add_argument('--trim_end', type=int)
     parser.add_argument('--test', action='store_true', default=False,
-                        help='Run the entire script on only the first %d reads of each file. Be sure to delete or move all test files before re-running script as they will not be overwritten.' % testLines)
+                        help='Run the entire script on only the first %d reads of each file. Be sure to delete or '
+                             'move all test files before re-running script as they will not be overwritten.'
+                             % testLines)
 
     args = parser.parse_args()
     # printNow(args)
@@ -185,15 +188,15 @@ if __name__ == '__main__':
     ###catch input mistakes###
     numProcessors = max(args.processors, 1)
 
-    infileList, outfileBaseList = parseSeqFileNames(args.Seq_File_Names)
+    infileList, outfileBaseList = parse_seq_file_names(args.Seq_File_Names)
     if len(infileList) == 0:
         sys.exit('Input error: no sequencing files found')
 
     try:
         seqToIdDict, idsToReadcountDict, expectedReadLength = parseLibraryFasta(args.Library_Fasta)
 
-        printNow('Library file loaded successfully:\n\t%.2E elements (%.2E unique sequences)\t%dbp reads expected' \
-                 % (len(idsToReadcountDict), len(seqToIdDict), expectedReadLength))
+        print_now('Library file loaded successfully:\n\t%.2E elements (%.2E unique sequences)\t%dbp reads expected' \
+                  % (len(idsToReadcountDict), len(seqToIdDict), expectedReadLength))
 
     except IOError:
         sys.exit('Input error: library fasta file not found')
@@ -202,9 +205,9 @@ if __name__ == '__main__':
         sys.exit('Input error: ' + err.args[0])
 
     trimmedFastaPath = os.path.join(args.Out_File_Path, 'unaligned_reads')
-    makeDirectory(trimmedFastaPath)
+    make_directory(trimmedFastaPath)
     countFilePath = os.path.join(args.Out_File_Path, 'count_files')
-    makeDirectory(countFilePath)
+    make_directory(countFilePath)
 
     fastaFileNameList = [outfileName + '_unaligned.fa' for outfileName in outfileBaseList]
     fastaFilePathList = [os.path.join(trimmedFastaPath, fastaFileName) for fastaFileName in fastaFileNameList]
@@ -215,8 +218,8 @@ if __name__ == '__main__':
     pool = multiprocessing.Pool(min(len(infileList), numProcessors))
 
     try:
-        resultList = parallelSeqFileToCountsParallel(infileList, fastaFilePathList, countFilePathList, pool,
-                                                     args.Library_Fasta, args.trim_start, args.trim_end, args.test)
+        resultList = parallel_seq_file_to_counts_parallel(infileList, fastaFilePathList, countFilePathList, pool,
+                                                          args.Library_Fasta, args.trim_start, args.trim_end, args.test)
     except ValueError as err:
         sys.exit('Error while processing sequencing files: ' + ' '.join(err.args))
 
@@ -226,4 +229,4 @@ if __name__ == '__main__':
     pool.close()
     pool.join()
 
-    printNow('Done processing all sequencing files')
+    print_now('Done processing all sequencing files')
