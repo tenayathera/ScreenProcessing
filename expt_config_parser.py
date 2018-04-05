@@ -1,12 +1,11 @@
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 import os
-import fnmatch
 
 
 # Parse and validate the input of an experiment config file
 # output a dict with all of the parameters needed to process experiments
 def parse_expt_config(config_file, libraries_to_sublibraries_dict):
-    parser = SafeConfigParser()
+    parser = ConfigParser()
     results = parser.read(config_file)
     if len(results) == 0:
         return None, 1, 'Experiment config file not found'
@@ -16,29 +15,27 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
     exit_status = 0
     warning_string = ''
 
-    ##check all sections
-    expected_sections = set(['experiment_settings',
-                            'library_settings',
-                            'counts_files',
-                            'filter_settings',
-                            'sgrna_analysis',
-                            'growth_values',
-                            'gene_analysis'])
+    # check all sections
+    expected_sections = {'experiment_settings', 'library_settings', 'counts_files',
+                         'filter_settings', 'sgrna_analysis',
+                         'growth_values', 'gene_analysis'}
 
     parsed_sections = set(parser.sections())
 
     if len(expected_sections) != len(parsed_sections) and len(expected_sections) != len(
             expected_sections.intersection(parsed_sections)):
-        return param_dict, 1, 'Config file does not have all required sections or has extraneous sections!\nExpected:' + ','.join(
-            expected_sections) + '\nFound:' + ','.join(parsed_sections)
+        return param_dict, 1, \
+               'Config file does not have all required sections or has extraneous sections!\nExpected:' + ','.join(
+                expected_sections) + '\nFound:' + ','.join(parsed_sections)
 
-    ##experiment settings
+    # experiment settings
     if parser.has_option('experiment_settings', 'output_folder'):
         param_dict['output_folder'] = parser.get('experiment_settings',
-                                                'output_folder')  # ways to check this is a valid path?
+                                                 'output_folder')
+        # TODO: ways to check this is a valid path?
     else:
         warning_string += 'No output folder specified, defaulting to current directory\n.'
-        param_dict['output_folder'] = os.curdir()
+        param_dict['output_folder'] = os.getcwd()
 
     if parser.has_option('experiment_settings', 'experiment_name'):
         param_dict['experiment_name'] = parser.get('experiment_settings', 'experiment_name')
@@ -46,7 +43,7 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         warning_string += 'No experiment name specified, defaulting to \'placeholder_expt_name\'\n.'
         param_dict['experiment_name'] = 'placeholder_expt_name'
 
-    ##library settings
+    # library settings
     library_dict = libraries_to_sublibraries_dict
     if parser.has_option('library_settings', 'library'):
         parsed_library = parser.get('library_settings', 'library')
@@ -78,7 +75,7 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         else:
             param_dict['sublibraries'] = library_dict[param_dict['library']]
 
-    ##counts files
+    # counts files
     if parser.has_option('counts_files', 'counts_file_string'):
         counts_file_string = parser.get('counts_files', 'counts_file_string').strip()
 
@@ -106,7 +103,7 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         warning_string += 'No counts files entered\n'
         exit_status += 1
 
-    ##filter settings
+    # filter settings
     filter_options = ['either', 'both']
     if parser.has_option('filter_settings', 'filter_type') and parser.get('filter_settings',
                                                                           'filter_type').lower() in filter_options:
@@ -119,13 +116,15 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         try:
             param_dict['minimum_reads'] = parser.getint('filter_settings', 'minimum_reads')
         except ValueError:
-            warning_string += 'Minimum read value not an integer, defaulting to 0\n'  # recommended value is 50 but seems arbitrary to default to that
+            # recommended value is 50 but seems arbitrary to default to that
+            warning_string += 'Minimum read value not an integer, defaulting to 0\n'
             param_dict['minimum_reads'] = 0
     else:
-        warning_string += 'Minimum read value not found, defaulting to 0\n'  # recommended value is 50 but seems arbitrary to default to that
+        # recommended value is 50 but seems arbitrary to default to that
+        warning_string += 'Minimum read value not found, defaulting to 0\n'
         param_dict['minimum_reads'] = 0
 
-    ##sgRNA Analysis
+    # sgRNA Analysis
     if parser.has_option('sgrna_analysis', 'condition_string'):
         condition_string = parser.get('sgrna_analysis', 'condition_string').strip()
 
@@ -148,7 +147,8 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
                 phenotype, condition1, condition2 = condition_string_line.split(':')
 
                 if condition1 not in expected_conditions or condition2 not in expected_conditions:
-                    warning_string += 'One of the conditions entered does not correspond to a counts file: ' + condition_string_line + '\n'
+                    warning_string += 'One of the conditions entered does not correspond to a counts file: ' + \
+                                      condition_string_line + '\n'
                     exit_status += 1
                 else:
                     param_dict['condition_tuples'].append((phenotype, condition1, condition2))
@@ -169,8 +169,8 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         exit_status += 1
 
     pseudocount_options = ['zeros only', 'all values', 'filter out']
-    if parser.has_option('sgrna_analysis', 'pseudocount_behavior') and parser.get('sgrna_analysis',
-                                                                                  'pseudocount_behavior').lower() in pseudocount_options:
+    if parser.has_option('sgrna_analysis', 'pseudocount_behavior') and \
+            parser.get('sgrna_analysis', 'pseudocount_behavior').lower() in pseudocount_options:
         param_dict['pseudocount_behavior'] = parser.get('sgrna_analysis', 'pseudocount_behavior').lower()
     else:
         warning_string += 'Pseudocount behavior not set or not recognized, defaulting to \'zeros only\'\n'
@@ -186,7 +186,7 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         warning_string += 'Pseudocount value not found, defaulting to 0.1\n'
         param_dict['pseudocount'] = 0.1
 
-    ##Growth Values
+    # Growth Values
     if parser.has_option('growth_values', 'growth_value_string') and len(
             parser.get('growth_values', 'growth_value_string').strip()) != 0:
         growth_value_string = parser.get('growth_values', 'growth_value_string').strip()
@@ -240,8 +240,8 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
                     cur_tup) + ' was not expected given the specified counts file assignments and sgRNA phenotypes\n'
                 exit_status += 1
 
-        # because we enforced no duplicates or unexpected values these should match up unless there were values not entered
-        # require all growth values to be explictly entered if some were
+        # because we enforced no duplicates or unexpected values these should match up unless there
+        # were values not entered require all growth values to be explictly entered if some were
         if len(entered_tuple_list) != len(expected_tuple_list):
             warning_string += 'Growth values were not entered for all expected comparisons/replicates. Expected: ' + \
                              ','.join([':'.join(tup) for tup in expected_tuple_list]) + '\nEntered: ' + \
@@ -263,7 +263,7 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
                 for rep in expected_replicates:
                     param_dict['growth_value_tuples'].append((comp, rep, 1))
 
-    ##Gene Analysis
+    # Gene Analysis
     if parser.has_option('gene_analysis', 'collapse_to_transcripts'):
         try:
             param_dict['collapse_to_transcripts'] = parser.getboolean('gene_analysis', 'collapse_to_transcripts')
@@ -370,9 +370,11 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
     return param_dict, exit_status, warning_string
 
 
-# Parse the library configuration file to get the available libraries, sublibraries, and corresponding library table files
 def parse_library_config(lib_config_file):
-    parser = SafeConfigParser()
+    """Parse the library configuration file to get the available libraries, sublibraries,
+     and corresponding library table files"""
+
+    parser = ConfigParser()
     result = parser.read(lib_config_file)
     if len(result) == 0:
         raise ValueError('Library config file not found')

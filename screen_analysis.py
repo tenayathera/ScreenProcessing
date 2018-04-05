@@ -4,16 +4,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-import sys
 import numpy as np
-import scipy as sp
 
-plotDirectory = None  ##set to a directory to save figures
-imageExtension = 'png'
-plotWithPylab = True  ##call plt.show when figures are done
-figureScale = 1
-
-##Matplotlib settings
+# Matplotlib settings
 almost_black = '#111111'
 dark2 = ['#1b9e77',
          '#d95f02',
@@ -69,427 +62,30 @@ plt.rcParams['xtick.major.width'] = axisLineWidth
 
 def load_data(experiment_name, collapsed_to_transcripts=True, premerged_counts=False):
     data_dict = {'library': pd.read_csv(experiment_name + '_librarytable.txt', sep='\t', header=0, index_col=0),
-                'counts': pd.read_csv(experiment_name + '_mergedcountstable.txt', sep='\t', header=list(range(2)),
-                                      index_col=list(range(1))),
-                'phenotypes': pd.read_csv(experiment_name + '_phenotypetable.txt', sep='\t', header=list(range(2)),
-                                          index_col=list(range(1)))}
+                 'counts': pd.read_csv(experiment_name + '_mergedcountstable.txt', sep='\t', header=list(range(2)),
+                                       index_col=list(range(1))),
+                 'phenotypes': pd.read_csv(experiment_name + '_phenotypetable.txt', sep='\t', header=list(range(2)),
+                                           index_col=list(range(1)))}
 
     if premerged_counts:
         data_dict['premerged counts'] = pd.read_csv(experiment_name + '_rawcountstable.txt', sep='\t',
-                                                   header=list(range(3)), index_col=list(range(1)))
+                                                    header=list(range(3)), index_col=list(range(1)))
 
     if collapsed_to_transcripts:
-        data_dict['transcript scores'] = pd.read_csv(experiment_name + '_genetable.txt', sep='\t', header=list(range(3)),
-                                                    index_col=list(range(2)))
+        data_dict['transcript scores'] = pd.read_csv(experiment_name + '_genetable.txt', sep='\t',
+                                                     header=list(range(3)),
+                                                     index_col=list(range(2)))
         data_dict['gene scores'] = pd.read_csv(experiment_name + '_genetable_collapsed.txt', sep='\t',
-                                              header=list(range(3)), index_col=list(range(1)))
+                                               header=list(range(3)), index_col=list(range(1)))
     else:
         data_dict['gene scores'] = pd.read_csv(experiment_name + '_genetable.txt', sep='\t', header=list(range(3)),
-                                              index_col=list(range(1)))
+                                               index_col=list(range(1)))
 
     return data_dict
 
 
-##read counts-level plotting functions
-def counts_histogram(data, condition=None, replicate=None):
-    if not check_options(data, 'counts', (condition, replicate)):
-        return
+# utility functions
 
-    fig, axis = plt.subplots(figsize=(3.5 * figureScale, 2.5 * figureScale))
-    clean_axes(axis)
-
-    axis.semilogy()
-
-    log_counts = np.log2(data['counts'].loc[:, (condition, replicate)].fillna(0) + 1)
-
-    axis.hist(log_counts,
-              bins=int(len(data['counts']) ** .3),
-              histtype='step', color=almost_black, lw=1)
-
-    ymax = axis.get_ylim()[1]
-    axis.plot([np.median(log_counts)] * 2, (0.8, ymax), color='#BFBFBF', lw=.5, alpha=.5)
-    axis.text(np.median(log_counts) * .98, ymax * .90,
-              'median reads = {0:.0f}'.format(np.median(data['counts'].loc[:, (condition, replicate)].fillna(0))),
-              horizontalalignment='right', verticalalignment='top', fontsize=6)
-
-    axis.set_ylim((0.9, ymax))
-
-    axis.set_xlabel('{0} {1} sgRNA read counts (log2)'.format(condition, replicate))
-    axis.set_ylabel('Number of sgRNAs')
-
-    plt.tight_layout()
-    return display_figure(fig, 'counts_hist')
-
-
-def counts_scatter(data, condition_x=None, replicate_x=None,
-                   condition_y=None, replicate_y=None,
-                   show_all=True, show_negatives=True, show_genes=None,
-                   color_by_phenotype_condition=None, color_by_phenotype_replicate=None):
-    if not show_genes:
-        show_genes = []
-    if not check_options(data, 'counts', (condition_x, replicate_x)):
-        return
-    if not check_options(data, 'counts', (condition_y, replicate_y)):
-        return
-    if color_by_phenotype_condition is not None and color_by_phenotype_replicate is not None \
-            and not check_options(data, 'phenotypes', (color_by_phenotype_condition, color_by_phenotype_replicate)):
-        return
-
-    fig, axis = plt.subplots(figsize=(3 * figureScale, 3 * figureScale))
-    clean_axes(axis)
-
-    if show_all:
-        if color_by_phenotype_condition is None or color_by_phenotype_replicate is None:
-            axis.scatter(np.log2(data['counts'].loc[:, (condition_x, replicate_x)] + 1),
-                         np.log2(data['counts'].loc[:, (condition_y, replicate_y)] + 1),
-                         s=1.5, c=almost_black, label='all sgRNAs',
-                         rasterized=True)
-        else:
-            result = axis.scatter(np.log2(data['counts'].loc[:, (condition_x, replicate_x)] + 1),
-                                  np.log2(data['counts'].loc[:, (condition_y, replicate_y)] + 1),
-                                  s=1.5,
-                                  c=data['phenotypes'].loc[:, (color_by_phenotype_condition, color_by_phenotype_replicate)],
-                                  cmap=yellow_blue, label='all sgRNAs',
-                                  rasterized=True)
-
-            plt.colorbar(result)
-
-    if show_negatives:
-        axis.scatter(
-            np.log2(data['counts'].loc[data['library']['gene'] == 'negative_control', (condition_x, replicate_x)] + 1),
-            np.log2(data['counts'].loc[data['library']['gene'] == 'negative_control', (condition_y, replicate_y)] + 1),
-            s=1.5, c='#BFBFBF', label='non-targeting sgRNAs',
-            rasterized=True)
-
-    if show_genes and len(show_genes) != 0:
-        if isinstance(show_genes, str):
-            show_genes = [show_genes]
-
-        gene_set = set(data['library']['gene'])
-        for i, gene in enumerate(show_genes):
-            if gene not in gene_set:
-                print('{0} not in dataset'.format(gene))
-            else:
-                axis.scatter(
-                    np.log2(data['counts'].loc[data['library']['gene'] == gene, (condition_x, replicate_x)] + 1),
-                    np.log2(data['counts'].loc[data['library']['gene'] == gene, (condition_y, replicate_y)] + 1),
-                    s=3, c=dark2[i], label=gene)
-
-    plt.legend(loc='best', fontsize=6, handletextpad=0.005)
-
-    axis.set_xlim((-0.2, max(axis.get_xlim()[1], axis.get_ylim()[1])))
-    axis.set_ylim((-0.2, max(axis.get_xlim()[1], axis.get_ylim()[1])))
-
-    axis.set_xlabel('{0} {1} sgRNA read counts (log2)'.format(condition_x, replicate_x), fontsize=8)
-    axis.set_ylabel('{0} {1} sgRNA read counts (log2)'.format(condition_y, replicate_y), fontsize=8)
-
-    plt.tight_layout()
-    return display_figure(fig, 'counts_scatter')
-
-
-def premerged_counts_scatter_matrix(data, condition=None, replicate=None):
-    if not check_options(data, 'counts', (condition, replicate)):
-        return
-
-    if 'premerged counts' not in data:
-        print('Data must be loaded with premergedCounts = True')
-        return
-
-    data_table = data['premerged counts'].loc[:, (condition, replicate)]
-    data_columns = data_table.columns
-    if len(data_columns) == 1:
-        print('Only one counts file for {0}, {1}; no scatter matrix will be generated'.format(condition, replicate))
-        return
-
-    fig, axes = plt.subplots(len(data_columns), len(data_columns),
-                             figsize=(len(data_columns) * 2.5, len(data_columns) * 2.5))
-
-    for i, (name1, col1) in enumerate(data_table.items()):
-        name1 = '{0:.30}'.format(os.path.split(name1)[-1])
-        for j, (name2, col2) in enumerate(data_table.items()):
-            name2 = '{0:.30}'.format(os.path.split(name2)[-1])
-            if i < j:
-                clean_axes(axes[i, j], top=False, bottom=False, left=False, right=False)
-                axes[i, j].xaxis.set_tick_params(top='off', bottom='off', labelbottom='off')
-                axes[i, j].yaxis.set_tick_params(left='off', right='off', labelleft='off')
-
-            elif i == j:
-                axes[i, j].hist(np.log2(col2.dropna() + 1), bins=int(len(col2) ** .3), histtype='step',
-                                color=almost_black, lw=1)
-
-                axes[i, j].set_xlabel(name2, fontsize=6)
-                axes[i, j].set_ylabel('# sgRNAs', fontsize=6)
-
-                axes[i, j].xaxis.set_tick_params(labelsize=6)
-                axes[i, j].yaxis.set_tick_params(labelsize=6)
-            else:
-                axes[i, j].scatter(np.log2(col2.dropna() + 1), np.log2(col1.dropna() + 1), s=2, c=almost_black,
-                                   rasterized=True)
-
-                axes[i, j].set_xlabel(name2, fontsize=6)
-                axes[i, j].set_ylabel(name1, fontsize=6)
-
-                axes[i, j].xaxis.set_tick_params(labelsize=6)
-                axes[i, j].yaxis.set_tick_params(labelsize=6)
-
-    plt.tight_layout(pad=.05)
-    return display_figure(fig, 'premerged_counts_scatter')
-
-
-##phenotype-level plotting functions
-# not yet implemented: counts vs phenotype
-
-def phenotype_histogram(data, phenotype=None, replicate=None):
-    if not check_options(data, 'phenotypes', (phenotype, replicate)):
-        return
-
-    fig, axis = plt.subplots(figsize=(3.5 * figureScale, 2.5 * figureScale))
-    clean_axes(axis)
-
-    axis.semilogy()
-
-    axis.hist([data['phenotypes'].loc[:, (phenotype, replicate)].dropna(),
-               data['phenotypes'].loc[data['library']['gene'] == 'negative_control', (phenotype, replicate)].dropna()],
-              bins=int(len(data['phenotypes']) ** .3),
-              histtype='step', color=[almost_black, '#BFBFBF'], label=['all sgRNAs', 'non-targeting sgRNAs'], lw=1)
-
-    plt.legend(fontsize=6, loc='upper left')
-
-    axis.set_ylim((0.9, axis.get_ylim()[1]))
-
-    axis.set_xlabel('{0} {1} sgRNA phenotypes'.format(phenotype, replicate))
-    axis.set_ylabel('Number of sgRNAs')
-
-    plt.tight_layout()
-    return display_figure(fig, 'phenotype_hist')
-
-
-def phenotype_scatter(data, phenotype_x=None, replicate_x=None,
-                      phenotype_y=None, replicate_y=None,
-                      show_all=True, show_negatives=True,
-                      show_genes=None, show_gene_sets=None):
-    if not show_genes:
-        show_genes = []
-    if not show_gene_sets:
-        show_gene_sets = {}
-
-    if not check_options(data, 'phenotypes', (phenotype_x, replicate_x)):
-        return
-    if not check_options(data, 'phenotypes', (phenotype_y, replicate_y)):
-        return
-
-    fig, axis = plt.subplots(figsize=(3 * figureScale, 3 * figureScale))
-    clean_axes(axis)
-
-    if show_all:
-        axis.scatter(data['phenotypes'].loc[:, (phenotype_x, replicate_x)],
-                     data['phenotypes'].loc[:, (phenotype_y, replicate_y)],
-                     s=1.5, c=almost_black, label='all sgRNAs',
-                     rasterized=True)
-
-    if show_negatives:
-        axis.scatter(data['phenotypes'].loc[data['library']['gene'] == 'negative_control', (phenotype_x, replicate_x)],
-                     data['phenotypes'].loc[data['library']['gene'] == 'negative_control', (phenotype_y, replicate_y)],
-                     s=1.5, c='#BFBFBF', label='non-targeting sgRNAs',
-                     rasterized=True)
-
-    i = 0
-    if show_genes and len(show_genes) != 0:
-        if isinstance(show_genes, str):
-            show_genes = [show_genes]
-
-        gene_set = set(data['library']['gene'])
-        for i, gene in enumerate(show_genes):
-            if gene not in gene_set:
-                print('{0} not in dataset'.format(gene))
-            else:
-                axis.scatter(data['phenotypes'].loc[data['library']['gene'] == gene, (phenotype_x, replicate_x)],
-                             data['phenotypes'].loc[data['library']['gene'] == gene, (phenotype_y, replicate_y)],
-                             s=3, c=dark2[i], label=gene,
-                             rasterized=True)
-
-    if show_gene_sets and len(show_gene_sets) != 0:
-        if not isinstance(show_gene_sets, dict) or not \
-                (isinstance(show_gene_sets[list(show_gene_sets.keys())[0]], set) or isinstance(
-                    show_gene_sets[list(show_gene_sets.keys())[0]], list)):
-            print('Gene sets must be a dictionary of {set_name: [gene list/set]} pairs')
-
-        else:
-            for j, gs in enumerate(show_gene_sets):
-                sgs_targeting_set = data['library']['gene'].apply(lambda one_gene: one_gene in show_gene_sets[gs])
-                axis.scatter(data['phenotypes'].loc[sgs_targeting_set, (phenotype_x, replicate_x)],
-                             data['phenotypes'].loc[sgs_targeting_set, (phenotype_y, replicate_y)],
-                             s=3, c=dark2[i + j], label=gs,
-                             rasterized=True)
-
-    plot_grid(axis)
-
-    plt.legend(loc='best', fontsize=6, handletextpad=0.005)
-
-    axis.set_xlabel('sgRNA {0} {1}'.format(phenotype_x, replicate_x), fontsize=8)
-    axis.set_ylabel('sgRNA {0} {1}'.format(phenotype_y, replicate_y), fontsize=8)
-
-    plt.tight_layout()
-    return display_figure(fig, 'phenotype_scatter')
-
-
-def sg_r_n_as_passing_filter_hist(data, phenotype, replicate, transcripts=False):
-    if not check_options(data, 'phenotypes', (phenotype, replicate)):
-        return
-
-    fig, axis = plt.subplots(figsize=(3.5 * figureScale, 2.5 * figureScale))
-    clean_axes(axis)
-
-    axis.semilogy()
-
-    if transcripts:
-        sg_RNAs_per_gene = data['phenotypes'].loc[
-            data['library']['gene'] != 'negative_control', (phenotype, replicate)].groupby(
-            [data['library']['gene'], data['library']['transcripts']]).count()
-    else:
-        sg_RNAs_per_gene = data['phenotypes'].loc[
-            data['library']['gene'] != 'negative_control', (phenotype, replicate)].groupby(
-            data['library']['gene']).count()
-
-    axis.hist(sg_RNAs_per_gene,
-              bins=np.arange(min(sg_RNAs_per_gene), max(sg_RNAs_per_gene) + 1, 1),
-              histtype='step', color=almost_black, lw=1)
-
-    axis.set_ylim((0.9, axis.get_ylim()[1]))
-
-    axis.set_xlabel(
-        '{0} {1} sgRNAs passing filter per {2}'.format(phenotype, replicate, 'transcript' if transcripts else 'gene'))
-    axis.set_ylabel('Number of sgRNAs')
-
-    plt.tight_layout()
-    return display_figure(fig, 'sgRNAs_passing_filter_hist')
-
-
-##gene-level plotting functions
-def volcano_plot(data, phenotype=None, replicate=None, transcripts=False, show_pseudo=True,
-                 effect_size_label=None, pvalue_label=None, hit_threshold=7,
-                 label_hits=False, show_gene_sets=None, label_gene_sets=True):
-
-    if not show_gene_sets:
-        show_gene_sets = {}
-    if not check_options(data, 'genes', (phenotype, replicate)):
-        return
-
-    if transcripts:
-        table = data['transcript scores'][(phenotype, replicate)].copy()
-        is_pseudo = table.apply(lambda single_row: single_row.name[0][:6] == 'pseudo', axis=1)
-    else:
-        table = data['gene scores'][(phenotype, replicate)].copy()
-        is_pseudo = table.apply(lambda single_row: single_row.name[:6] == 'pseudo', axis=1)
-
-    if effect_size_label is None:
-        effect_size_label = get_effect_size_label(table)
-
-        if effect_size_label is None:
-            return
-
-    if pvalue_label is None:
-        pvalue_label = get_pvalue_label(table)
-
-        if pvalue_label is None:
-            return
-
-    disc_score = lambda z, p: p * np.abs(z)
-
-    pseudogene_scores = table[is_pseudo]
-    pseudo_std = np.std(pseudogene_scores[effect_size_label])
-    table.loc[:, 'thresh'] = disc_score(table[effect_size_label] / pseudo_std,
-                                       -1 * np.log10(table[pvalue_label])) >= hit_threshold
-
-    y_genes = -1 * np.log10(table[pvalue_label])
-    x_genes = table[effect_size_label]
-
-    fig, axis = plt.subplots(1, 1, figsize=(4 * figureScale, 3.5 * figureScale))
-    clean_axes(axis)
-
-    axis.scatter(table.loc[is_pseudo.ne(True)].loc[table['thresh'], effect_size_label],
-                 -1 * np.log10(table.loc[is_pseudo.ne(True)].loc[table['thresh'], pvalue_label].values),
-                 s=4,
-                 c='#7570b3',
-                 label='Gene hit',
-                 rasterized=True)
-
-    axis.scatter(table.loc[is_pseudo.ne(True)].loc[table['thresh'].ne(True), effect_size_label],
-                 -1 * np.log10(table.loc[is_pseudo.ne(True)].loc[table['thresh'].ne(True), pvalue_label].values),
-                 s=4,
-                 c='#999999',
-                 label='Gene non-hit',
-                 rasterized=True)
-
-    if label_hits:
-        for gene, row in table.loc[is_pseudo.ne(True)].loc[table['thresh']].iterrows():
-            if transcripts:
-                gene = ', '.join(gene)
-
-            axis.text(row[effect_size_label], -1 * np.log10(row[pvalue_label]), gene, fontsize=6,
-                      horizontalalignment='left' if row[effect_size_label] > 0 else 'right', verticalalignment='center')
-
-    if show_pseudo:
-        axis.scatter(table.loc[is_pseudo.ne(False)].loc[table['thresh'], effect_size_label],
-                     -1 * np.log10(table.loc[is_pseudo.ne(False)].loc[table['thresh'], pvalue_label].values),
-                     s=4,
-                     c='#d95f02',
-                     label='Negative control gene hit',
-                     rasterized=True)
-
-        axis.scatter(table.loc[is_pseudo.ne(False)].loc[table['thresh'].ne(True), effect_size_label],
-                     -1 * np.log10(table.loc[is_pseudo.ne(False)].loc[table['thresh'].ne(True), pvalue_label].values),
-                     s=4,
-                     c='#dadaeb',
-                     label='Negative control gene',
-                     rasterized=True)
-
-    if show_gene_sets and len(show_gene_sets) != 0:
-        if not isinstance(show_gene_sets, dict) or not \
-                (isinstance(show_gene_sets[list(show_gene_sets.keys())[0]], set) or isinstance(
-                    show_gene_sets[list(show_gene_sets.keys())[0]], list)):
-            print('Gene sets must be a dictionary of {set_name: [gene list/set]} pairs')
-
-        else:
-            for i, gs in enumerate(show_gene_sets):
-                sgs_targeting_set = data['library']['gene'].apply(lambda one_gene: one_gene in show_gene_sets[gs])
-                axis.scatter(table.loc[show_gene_sets[gs], effect_size_label],
-                             -1 * np.log10(table.loc[show_gene_sets[gs], pvalue_label]),
-                             s=6, c=dark2[i], label=gs)
-
-                if label_gene_sets:
-                    for gene, row in table.loc[show_gene_sets[gs]].iterrows():
-                        if transcripts:
-                            gene = ', '.join(gene)
-
-                        axis.text(row[effect_size_label], -1 * np.log10(row[pvalue_label]), gene, fontsize=6,
-                                  horizontalalignment='left' if row[effect_size_label] > 0 else 'right',
-                                  verticalalignment='center')
-
-    plot_grid(axis, vert_origin=True, horiz_origin=False, unity=False)
-
-    ymax = np.ceil(max(y_genes)) * 1.02
-    xmin = min(x_genes) * 1.05
-    xmax = max(x_genes) * 1.05
-
-    axis.plot(np.linspace(xmin, xmax, 1000),
-              np.abs(hit_threshold / np.linspace(xmin / pseudo_std, xmax / pseudo_std, 1000)), 'k--', lw=.5)
-
-    axis.set_xlim((xmin, xmax))
-    axis.set_ylim((0, ymax))
-
-    axis.set_xlabel(
-        '{3} {0} {1} ({2})'.format(phenotype, replicate, effect_size_label, 'gene' if not transcripts else 'transcript'),
-        fontsize=8)
-    axis.set_ylabel('-log10 {0}'.format(pvalue_label, fontsize=8))
-
-    plt.legend(loc='best', fontsize=6, handletextpad=0.005)
-
-    plt.tight_layout()
-    return display_figure(fig, 'volcano_plot')
-
-
-##utility functions
 def check_options(data, graph_type, option_tuple):
     if option_tuple[0] is None or option_tuple[1] is None:
         list_options(data, graph_type)
@@ -554,51 +150,462 @@ def get_pvalue_label(table):
         return None
 
     elif len(pval_col_labels) > 1:
-        print('Multiple p-value data columns found, please specifiy one: ' + ', '.join(effectColLabels))
+        print('Multiple p-value data columns found, please specifiy one: ' + ', '.join(pval_col_labels))
         return None
 
     else:
         return pval_col_labels[0]
 
 
-def display_figure(fig, savetitle=''):
-    if plotWithPylab:
-        plt.show(fig)
+class PlottingObject(object):
 
-    if plotDirectory is not None:
-        fig_nums = [int(fileName.split('_fig_')[0]) for fileName in os.listdir(plotDirectory) if
-                   len(fileName.split('_fig_')) >= 2]
-        if len(fig_nums) == 0:
-            next_fig_num = 0
+    def __init__(self, new_directory=None, new_image_extension='png', new_plot_with_pylab=True,
+                 new_figure_scale=1):
+
+        self.plot_directory = new_directory  # set to a directory to save figures
+        self.image_extension = new_image_extension
+        self.plot_with_pylab = new_plot_with_pylab
+        self.figure_scale = new_figure_scale
+
+    def display_figure(self, fig, savetitle=''):
+        if self.plot_with_pylab:
+            plt.show(fig)
+
+        if self.plot_directory is not None:
+            fig_nums = [int(fileName.split('_fig_')[0]) for fileName in os.listdir(self.plot_directory) if
+                        len(fileName.split('_fig_')) >= 2]
+            if len(fig_nums) == 0:
+                next_fig_num = 0
+            else:
+                next_fig_num = max(fig_nums) + 1
+
+            full_title = os.path.join(self.plot_directory,
+                                      '{0:03d}_fig_{1}.{2}'.format(next_fig_num, savetitle, self.image_extension))
+            print(full_title)
+            fig.savefig(full_title, dpi=1000)
+            plt.close(fig)
+
+            return full_title
+
+        if self.plot_directory is None and not self.plot_with_pylab:
+            print('Must be in pylab and/or set a plot directory to display figures')
+
+            plt.close(fig)
+
+    def counts_histogram(self, data, condition=None, replicate=None):
+        """read counts-level plotting functions"""
+        if not check_options(data, 'counts', (condition, replicate)):
+            return
+
+        fig, axis = plt.subplots(figsize=(3.5 * self.figure_scale, 2.5 * self.figure_scale))
+        clean_axes(axis)
+
+        axis.semilogy()
+
+        log_counts = np.log2(data['counts'].loc[:, (condition, replicate)].fillna(0) + 1)
+
+        axis.hist(log_counts,
+                  bins=int(len(data['counts']) ** .3),
+                  histtype='step', color=almost_black, lw=1)
+
+        ymax = axis.get_ylim()[1]
+        axis.plot([np.median(log_counts)] * 2, (0.8, ymax), color='#BFBFBF', lw=.5, alpha=.5)
+        axis.text(np.median(log_counts) * .98, ymax * .90,
+                  'median reads = {0:.0f}'.format(np.median(data['counts'].loc[:, (condition, replicate)].fillna(0))),
+                  horizontalalignment='right', verticalalignment='top', fontsize=6)
+
+        axis.set_ylim((0.9, ymax))
+
+        axis.set_xlabel('{0} {1} sgRNA read counts (log2)'.format(condition, replicate))
+        axis.set_ylabel('Number of sgRNAs')
+
+        plt.tight_layout()
+        return self.display_figure(fig, 'counts_hist')
+
+    def counts_scatter(self, data, condition_x=None, replicate_x=None,
+                       condition_y=None, replicate_y=None,
+                       show_all=True, show_negatives=True, show_genes=None,
+                       color_by_phenotype_condition=None, color_by_phenotype_replicate=None):
+        if not show_genes:
+            show_genes = []
+        if not check_options(data, 'counts', (condition_x, replicate_x)):
+            return
+        if not check_options(data, 'counts', (condition_y, replicate_y)):
+            return
+        if color_by_phenotype_condition is not None and color_by_phenotype_replicate is not None \
+                and not check_options(data, 'phenotypes', (color_by_phenotype_condition, color_by_phenotype_replicate)):
+            return
+
+        fig, axis = plt.subplots(figsize=(3 * self.figure_scale, 3 * self.figure_scale))
+        clean_axes(axis)
+
+        if show_all:
+            if color_by_phenotype_condition is None or color_by_phenotype_replicate is None:
+                axis.scatter(np.log2(data['counts'].loc[:, (condition_x, replicate_x)] + 1),
+                             np.log2(data['counts'].loc[:, (condition_y, replicate_y)] + 1),
+                             s=1.5, c=almost_black, label='all sgRNAs',
+                             rasterized=True)
+            else:
+                result = axis.scatter(np.log2(data['counts'].loc[:, (condition_x, replicate_x)] + 1),
+                                      np.log2(data['counts'].loc[:, (condition_y, replicate_y)] + 1),
+                                      s=1.5,
+                                      c=data['phenotypes'].loc[:, (color_by_phenotype_condition,
+                                                                   color_by_phenotype_replicate)],
+                                      cmap=yellow_blue, label='all sgRNAs',
+                                      rasterized=True)
+
+                plt.colorbar(result)
+
+        if show_negatives:
+            axis.scatter(
+                np.log2(
+                    data['counts'].loc[data['library']['gene'] == 'negative_control', (condition_x, replicate_x)] + 1),
+                np.log2(
+                    data['counts'].loc[data['library']['gene'] == 'negative_control', (condition_y, replicate_y)] + 1),
+                s=1.5, c='#BFBFBF', label='non-targeting sgRNAs',
+                rasterized=True)
+
+        if show_genes and len(show_genes) != 0:
+            if isinstance(show_genes, str):
+                show_genes = [show_genes]
+
+            gene_set = set(data['library']['gene'])
+            for i, gene in enumerate(show_genes):
+                if gene not in gene_set:
+                    print('{0} not in dataset'.format(gene))
+                else:
+                    axis.scatter(
+                        np.log2(data['counts'].loc[data['library']['gene'] == gene, (condition_x, replicate_x)] + 1),
+                        np.log2(data['counts'].loc[data['library']['gene'] == gene, (condition_y, replicate_y)] + 1),
+                        s=3, c=dark2[i], label=gene)
+
+        plt.legend(loc='best', fontsize=6, handletextpad=0.005)
+
+        axis.set_xlim((-0.2, max(axis.get_xlim()[1], axis.get_ylim()[1])))
+        axis.set_ylim((-0.2, max(axis.get_xlim()[1], axis.get_ylim()[1])))
+
+        axis.set_xlabel('{0} {1} sgRNA read counts (log2)'.format(condition_x, replicate_x), fontsize=8)
+        axis.set_ylabel('{0} {1} sgRNA read counts (log2)'.format(condition_y, replicate_y), fontsize=8)
+
+        plt.tight_layout()
+        return self.display_figure(fig, 'counts_scatter')
+
+    def premerged_counts_scatter_matrix(self, data, condition=None, replicate=None):
+        if not check_options(data, 'counts', (condition, replicate)):
+            return
+
+        if 'premerged counts' not in data:
+            print('Data must be loaded with premergedCounts = True')
+            return
+
+        data_table = data['premerged counts'].loc[:, (condition, replicate)]
+        data_columns = data_table.columns
+        if len(data_columns) == 1:
+            print('Only one counts file for {0}, {1}; no scatter matrix will be generated'.format(condition, replicate))
+            return
+
+        fig, axes = plt.subplots(len(data_columns), len(data_columns),
+                                 figsize=(len(data_columns) * 2.5, len(data_columns) * 2.5))
+
+        for i, (name1, col1) in enumerate(data_table.items()):
+            name1 = '{0:.30}'.format(os.path.split(name1)[-1])
+            for j, (name2, col2) in enumerate(data_table.items()):
+                name2 = '{0:.30}'.format(os.path.split(name2)[-1])
+                if i < j:
+                    clean_axes(axes[i, j], top=False, bottom=False, left=False, right=False)
+                    axes[i, j].xaxis.set_tick_params(top='off', bottom='off', labelbottom='off')
+                    axes[i, j].yaxis.set_tick_params(left='off', right='off', labelleft='off')
+
+                elif i == j:
+                    axes[i, j].hist(np.log2(col2.dropna() + 1), bins=int(len(col2) ** .3), histtype='step',
+                                    color=almost_black, lw=1)
+
+                    axes[i, j].set_xlabel(name2, fontsize=6)
+                    axes[i, j].set_ylabel('# sgRNAs', fontsize=6)
+
+                    axes[i, j].xaxis.set_tick_params(labelsize=6)
+                    axes[i, j].yaxis.set_tick_params(labelsize=6)
+                else:
+                    axes[i, j].scatter(np.log2(col2.dropna() + 1), np.log2(col1.dropna() + 1), s=2, c=almost_black,
+                                       rasterized=True)
+
+                    axes[i, j].set_xlabel(name2, fontsize=6)
+                    axes[i, j].set_ylabel(name1, fontsize=6)
+
+                    axes[i, j].xaxis.set_tick_params(labelsize=6)
+                    axes[i, j].yaxis.set_tick_params(labelsize=6)
+
+        plt.tight_layout(pad=.05)
+        return self.display_figure(fig, 'premerged_counts_scatter')
+
+    # #phenotype-level plotting functions
+    # not yet implemented: counts vs phenotype
+
+    def phenotype_histogram(self, data, phenotype=None, replicate=None):
+        if not check_options(data, 'phenotypes', (phenotype, replicate)):
+            return
+
+        fig, axis = plt.subplots(figsize=(3.5 * self.figure_scale, 2.5 * self.figure_scale))
+        clean_axes(axis)
+
+        axis.semilogy()
+
+        axis.hist([data['phenotypes'].loc[:, (phenotype, replicate)].dropna(),
+                   data['phenotypes'].loc[
+                       data['library']['gene'] == 'negative_control', (phenotype, replicate)].dropna()],
+                  bins=int(len(data['phenotypes']) ** .3),
+                  histtype='step', color=[almost_black, '#BFBFBF'], label=['all sgRNAs', 'non-targeting sgRNAs'], lw=1)
+
+        plt.legend(fontsize=6, loc='upper left')
+
+        axis.set_ylim((0.9, axis.get_ylim()[1]))
+
+        axis.set_xlabel('{0} {1} sgRNA phenotypes'.format(phenotype, replicate))
+        axis.set_ylabel('Number of sgRNAs')
+
+        plt.tight_layout()
+        return self.display_figure(fig, 'phenotype_hist')
+
+    def phenotype_scatter(self, data, phenotype_x=None, replicate_x=None,
+                          phenotype_y=None, replicate_y=None,
+                          show_all=True, show_negatives=True,
+                          show_genes=None, show_gene_sets=None):
+        if not show_genes:
+            show_genes = []
+        if not show_gene_sets:
+            show_gene_sets = {}
+
+        if not check_options(data, 'phenotypes', (phenotype_x, replicate_x)):
+            return
+        if not check_options(data, 'phenotypes', (phenotype_y, replicate_y)):
+            return
+
+        fig, axis = plt.subplots(figsize=(3 * self.figure_scale, 3 * self.figure_scale))
+        clean_axes(axis)
+
+        if show_all:
+            axis.scatter(data['phenotypes'].loc[:, (phenotype_x, replicate_x)],
+                         data['phenotypes'].loc[:, (phenotype_y, replicate_y)],
+                         s=1.5, c=almost_black, label='all sgRNAs',
+                         rasterized=True)
+
+        if show_negatives:
+            axis.scatter(
+                data['phenotypes'].loc[data['library']['gene'] == 'negative_control', (phenotype_x, replicate_x)],
+                data['phenotypes'].loc[data['library']['gene'] == 'negative_control', (phenotype_y, replicate_y)],
+                s=1.5, c='#BFBFBF', label='non-targeting sgRNAs',
+                rasterized=True)
+
+        i = 0
+        if show_genes and len(show_genes) != 0:
+            if isinstance(show_genes, str):
+                show_genes = [show_genes]
+
+            gene_set = set(data['library']['gene'])
+            for i, gene in enumerate(show_genes):
+                if gene not in gene_set:
+                    print('{0} not in dataset'.format(gene))
+                else:
+                    axis.scatter(data['phenotypes'].loc[data['library']['gene'] == gene, (phenotype_x, replicate_x)],
+                                 data['phenotypes'].loc[data['library']['gene'] == gene, (phenotype_y, replicate_y)],
+                                 s=3, c=dark2[i], label=gene,
+                                 rasterized=True)
+
+        if show_gene_sets and len(show_gene_sets) != 0:
+            if not isinstance(show_gene_sets, dict) or not \
+                    (isinstance(show_gene_sets[list(show_gene_sets.keys())[0]], set) or
+                     isinstance(show_gene_sets[list(show_gene_sets.keys())[0]], list)):
+                print('Gene sets must be a dictionary of {set_name: [gene list/set]} pairs')
+
+            else:
+                for j, gs in enumerate(show_gene_sets):
+                    sgs_targeting_set = data['library']['gene'].apply(lambda one_gene: one_gene in show_gene_sets[gs])
+                    axis.scatter(data['phenotypes'].loc[sgs_targeting_set, (phenotype_x, replicate_x)],
+                                 data['phenotypes'].loc[sgs_targeting_set, (phenotype_y, replicate_y)],
+                                 s=3, c=dark2[i + j], label=gs,
+                                 rasterized=True)
+
+        plot_grid(axis)
+
+        plt.legend(loc='best', fontsize=6, handletextpad=0.005)
+
+        axis.set_xlabel('sgRNA {0} {1}'.format(phenotype_x, replicate_x), fontsize=8)
+        axis.set_ylabel('sgRNA {0} {1}'.format(phenotype_y, replicate_y), fontsize=8)
+
+        plt.tight_layout()
+        return self.display_figure(fig, 'phenotype_scatter')
+
+    def sg_r_n_as_passing_filter_hist(self, data, phenotype, replicate, transcripts=False):
+        if not check_options(data, 'phenotypes', (phenotype, replicate)):
+            return
+
+        fig, axis = plt.subplots(figsize=(3.5 * self.figure_scale, 2.5 * self.figure_scale))
+        clean_axes(axis)
+
+        axis.semilogy()
+
+        if transcripts:
+            sg_rnas_per_gene = data['phenotypes'].loc[
+                data['library']['gene'] != 'negative_control', (phenotype, replicate)].groupby(
+                [data['library']['gene'], data['library']['transcripts']]).count()
         else:
-            next_fig_num = max(fig_nums) + 1
+            sg_rnas_per_gene = data['phenotypes'].loc[
+                data['library']['gene'] != 'negative_control', (phenotype, replicate)].groupby(
+                data['library']['gene']).count()
 
-        full_title = os.path.join(plotDirectory, '{0:03d}_fig_{1}.{2}'.format(next_fig_num, savetitle, imageExtension))
-        print(full_title)
-        fig.savefig(full_title, dpi=1000)
-        plt.close(fig)
+        axis.hist(sg_rnas_per_gene,
+                  bins=np.arange(min(sg_rnas_per_gene), max(sg_rnas_per_gene) + 1, 1),
+                  histtype='step', color=almost_black, lw=1)
 
-        return full_title
+        axis.set_ylim((0.9, axis.get_ylim()[1]))
 
-    if plotDirectory is None and not plotWithPylab:
-        print('Must be in pylab and/or set a plot directory to display figures')
+        axis.set_xlabel(
+            '{0} {1} sgRNAs passing filter per {2}'.format(phenotype, replicate,
+                                                           'transcript' if transcripts else 'gene'))
+        axis.set_ylabel('Number of sgRNAs')
 
-        plt.close(fig)
+        plt.tight_layout()
+        return self.display_figure(fig, 'sgRNAs_passing_filter_hist')
+
+    def volcano_plot(self, data, phenotype=None, replicate=None, transcripts=False, show_pseudo=True,
+                     effect_size_label=None, pvalue_label=None, hit_threshold=7,
+                     label_hits=False, show_gene_sets=None, label_gene_sets=True):
+        """gene-level plotting functions"""
+        if not show_gene_sets:
+            show_gene_sets = {}
+        if not check_options(data, 'genes', (phenotype, replicate)):
+            return
+
+        if transcripts:
+            table = data['transcript scores'][(phenotype, replicate)].copy()
+            is_pseudo = table.apply(lambda single_row: single_row.name[0][:6] == 'pseudo', axis=1)
+        else:
+            table = data['gene scores'][(phenotype, replicate)].copy()
+            is_pseudo = table.apply(lambda single_row: single_row.name[:6] == 'pseudo', axis=1)
+
+        if effect_size_label is None:
+            effect_size_label = get_effect_size_label(table)
+
+            if effect_size_label is None:
+                return
+
+        if pvalue_label is None:
+            pvalue_label = get_pvalue_label(table)
+
+            if pvalue_label is None:
+                return
+
+        disc_score = lambda z, p: p * np.abs(z)
+
+        pseudogene_scores = table[is_pseudo]
+        pseudo_std = np.std(pseudogene_scores[effect_size_label])
+        table.loc[:, 'thresh'] = disc_score(table[effect_size_label] / pseudo_std,
+                                            -1 * np.log10(table[pvalue_label])) >= hit_threshold
+
+        y_genes = -1 * np.log10(table[pvalue_label])
+        x_genes = table[effect_size_label]
+
+        fig, axis = plt.subplots(1, 1, figsize=(4 * self.figure_scale, 3.5 * self.figure_scale))
+        clean_axes(axis)
+
+        axis.scatter(table.loc[is_pseudo.ne(True)].loc[table['thresh'], effect_size_label],
+                     -1 * np.log10(table.loc[is_pseudo.ne(True)].loc[table['thresh'], pvalue_label].values),
+                     s=4,
+                     c='#7570b3',
+                     label='Gene hit',
+                     rasterized=True)
+
+        axis.scatter(table.loc[is_pseudo.ne(True)].loc[table['thresh'].ne(True), effect_size_label],
+                     -1 * np.log10(table.loc[is_pseudo.ne(True)].loc[table['thresh'].ne(True), pvalue_label].values),
+                     s=4,
+                     c='#999999',
+                     label='Gene non-hit',
+                     rasterized=True)
+
+        if label_hits:
+            for gene, row in table.loc[is_pseudo.ne(True)].loc[table['thresh']].iterrows():
+                if transcripts:
+                    gene = ', '.join(gene)
+
+                axis.text(row[effect_size_label], -1 * np.log10(row[pvalue_label]), gene, fontsize=6,
+                          horizontalalignment='left' if row[effect_size_label] > 0 else 'right',
+                          verticalalignment='center')
+
+        if show_pseudo:
+            axis.scatter(table.loc[is_pseudo.ne(False)].loc[table['thresh'], effect_size_label],
+                         -1 * np.log10(table.loc[is_pseudo.ne(False)].loc[table['thresh'], pvalue_label].values),
+                         s=4,
+                         c='#d95f02',
+                         label='Negative control gene hit',
+                         rasterized=True)
+
+            axis.scatter(table.loc[is_pseudo.ne(False)].loc[table['thresh'].ne(True), effect_size_label],
+                         -1 * np.log10(
+                             table.loc[is_pseudo.ne(False)].loc[table['thresh'].ne(True), pvalue_label].values),
+                         s=4,
+                         c='#dadaeb',
+                         label='Negative control gene',
+                         rasterized=True)
+
+        if show_gene_sets and len(show_gene_sets) != 0:
+            if not isinstance(show_gene_sets, dict) or not \
+                    (isinstance(show_gene_sets[list(show_gene_sets.keys())[0]], set) or isinstance(
+                        show_gene_sets[list(show_gene_sets.keys())[0]], list)):
+                print('Gene sets must be a dictionary of {set_name: [gene list/set]} pairs')
+
+            else:
+                for i, gs in enumerate(show_gene_sets):
+                    data['library']['gene'].apply(lambda one_gene: one_gene in show_gene_sets[gs])
+                    axis.scatter(table.loc[show_gene_sets[gs], effect_size_label],
+                                 -1 * np.log10(table.loc[show_gene_sets[gs], pvalue_label]),
+                                 s=6, c=dark2[i], label=gs)
+
+                    if label_gene_sets:
+                        for gene, row in table.loc[show_gene_sets[gs]].iterrows():
+                            if transcripts:
+                                gene = ', '.join(gene)
+
+                            axis.text(row[effect_size_label], -1 * np.log10(row[pvalue_label]), gene, fontsize=6,
+                                      horizontalalignment='left' if row[effect_size_label] > 0 else 'right',
+                                      verticalalignment='center')
+
+        plot_grid(axis, vert_origin=True, horiz_origin=False, unity=False)
+
+        ymax = np.ceil(max(y_genes)) * 1.02
+        xmin = min(x_genes) * 1.05
+        xmax = max(x_genes) * 1.05
+
+        axis.plot(np.linspace(xmin, xmax, 1000),
+                  np.abs(hit_threshold / np.linspace(xmin / pseudo_std, xmax / pseudo_std, 1000)), 'k--', lw=.5)
+
+        axis.set_xlim((xmin, xmax))
+        axis.set_ylim((0, ymax))
+
+        axis.set_xlabel(
+            '{3} {0} {1} ({2})'.format(phenotype, replicate, effect_size_label,
+                                       'gene' if not transcripts else 'transcript'),
+            fontsize=8)
+        axis.set_ylabel('-log10 {0}'.format(pvalue_label, fontsize=8))
+
+        plt.legend(loc='best', fontsize=6, handletextpad=0.005)
+
+        plt.tight_layout()
+        return self.display_figure(fig, 'volcano_plot')
 
 
-def change_display_figure_settings(new_directory=None, new_image_extension='png', new_plot_with_pylab=True,
-                                   new_figure_scale=1):
-    global plotDirectory
-    plotDirectory = new_directory
-
-    global imageExtension
-    imageExtension = new_image_extension
-
-    global plotWithPylab
-    plotWithPylab = new_plot_with_pylab
-
-    global figureScale
-    figureScale = new_figure_scale
+# def change_display_figure_settings(new_directory=None, new_image_extension='png', new_plot_with_pylab=True,
+#                                    new_figure_scale=1):
+#     global plot_directory
+#     plot_directory = new_directory
+#
+#     global image_extension
+#     image_extension = new_image_extension
+#
+#     global plot_with_pylab
+#     plot_with_pylab = new_plot_with_pylab
+#
+#     global figure_scale
+#     figure_scale = new_figure_scale
 
 
 def plot_grid(axis, vert_origin=True, horiz_origin=True, unity=True):

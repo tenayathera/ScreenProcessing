@@ -9,16 +9,16 @@ import glob
 import argparse
 
 
-### Sequence File to Trimmed Fasta Functions ###
-
-def parallel_seq_file_to_counts_parallel(fastq_gz_file_name_list, fasta_file_name_list, count_file_name_list, process_pool,
-                                         libraryFasta, startIndex=None, stopIndex=None, test=False):
+def parallel_seq_file_to_counts_parallel(fastq_gz_file_name_list, fasta_file_name_list, count_file_name_list,
+                                         process_pool, library_fasta, start_index=None, stop_index=None, test=False):
+    """Sequence File to Trimmed Fasta Functions"""
     if len(fastq_gz_file_name_list) != len(fasta_file_name_list):
         raise ValueError('In and out file lists must be the same length')
 
     arglist = list(
-        zip(fastq_gz_file_name_list, fasta_file_name_list, count_file_name_list, [libraryFasta] * len(fasta_file_name_list),
-            [startIndex] * len(fasta_file_name_list), [stopIndex] * len(fasta_file_name_list),
+        zip(fastq_gz_file_name_list, fasta_file_name_list, count_file_name_list,
+            [library_fasta] * len(fasta_file_name_list),
+            [start_index] * len(fasta_file_name_list), [stop_index] * len(fasta_file_name_list),
             [test] * len(fasta_file_name_list)))
 
     reads_per_file = process_pool.map(seq_file_to_counts_wrapper, arglist)
@@ -50,7 +50,7 @@ def seq_file_to_counts(infile_name, fasta_file_name, count_file_name, library_fa
     else:
         raise ValueError('Sequencing file type not recognized!')
 
-    seq_to_id_dict, ids_to_readcount_dict, expected_read_length = parseLibraryFasta(library_fasta)
+    seq_to_id_dict, ids_to_readcount_dict, expected_read_length = parse_library_fasta(library_fasta)
 
     cur_read = 0
     num_aligning = 0
@@ -90,10 +90,9 @@ def seq_file_to_counts(infile_name, fasta_file_name, count_file_name, library_fa
     return cur_read, num_aligning, num_aligning * 100.0 / cur_read
 
 
-### Map File to Counts File Functions ###
-
-def parseLibraryFasta(library_fasta):
-    seq_to_ids  = dict()
+def parse_library_fasta(library_fasta):
+    """Map File to Counts File Functions """
+    seq_to_ids = dict()
     ids_to_readcounts = dict()
     read_lengths = []
 
@@ -127,17 +126,18 @@ def parseLibraryFasta(library_fasta):
     return seq_to_ids, ids_to_readcounts, read_lengths[0]
 
 
-### Utility Functions ###
+# Utility Functions
+
 def parse_seq_file_names(file_name_list):
     infile_list = []
     outfile_base_list = []
 
     for inputFileName in file_name_list:  # iterate through entered filenames for sequence files
-        for filename in glob.glob(inputFileName):  # generate all possible files given wildcards
+        for file_name in glob.glob(inputFileName):  # generate all possible files given wildcards
             for fileType in zip(*acceptedFileTypes)[0]:  # iterate through allowed filetypes
-                if fnmatch.fnmatch(filename, fileType):
-                    infile_list.append(filename)
-                    outfile_base_list.append(os.path.split(filename)[-1].split('.')[0])
+                if fnmatch.fnmatch(file_name, fileType):
+                    infile_list.append(file_name)
+                    outfile_base_list.append(os.path.split(file_name)[-1].split('.')[0])
 
     return infile_list, outfile_base_list
 
@@ -155,7 +155,8 @@ def print_now(print_input):
     sys.stdout.flush()
 
 
-### Global variables ###
+# Global variables
+
 acceptedFileTypes = [('*.fastq.gz', 'fqgz'),
                      ('*.fastq', 'fq'),
                      ('*.fq', 'fq'),
@@ -185,7 +186,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # printNow(args)
 
-    ###catch input mistakes###
+    # catch input mistakes
     numProcessors = max(args.processors, 1)
 
     infileList, outfileBaseList = parse_seq_file_names(args.Seq_File_Names)
@@ -193,9 +194,9 @@ if __name__ == '__main__':
         sys.exit('Input error: no sequencing files found')
 
     try:
-        seqToIdDict, idsToReadcountDict, expectedReadLength = parseLibraryFasta(args.Library_Fasta)
+        seqToIdDict, idsToReadcountDict, expectedReadLength = parse_library_fasta(args.Library_Fasta)
 
-        print_now('Library file loaded successfully:\n\t%.2E elements (%.2E unique sequences)\t%dbp reads expected' \
+        print_now('Library file loaded successfully:\n\t%.2E elements (%.2E unique sequences)\t%dbp reads expected'
                   % (len(idsToReadcountDict), len(seqToIdDict), expectedReadLength))
 
     except IOError:
