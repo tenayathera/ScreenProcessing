@@ -593,21 +593,6 @@ class PlottingObject(object):
         return self.display_figure(fig, 'volcano_plot')
 
 
-# def change_display_figure_settings(new_directory=None, new_image_extension='png', new_plot_with_pylab=True,
-#                                    new_figure_scale=1):
-#     global plot_directory
-#     plot_directory = new_directory
-#
-#     global image_extension
-#     image_extension = new_image_extension
-#
-#     global plot_with_pylab
-#     plot_with_pylab = new_plot_with_pylab
-#
-#     global figure_scale
-#     figure_scale = new_figure_scale
-
-
 def plot_grid(axis, vert_origin=True, horiz_origin=True, unity=True):
     ylim = axis.get_ylim()
     xlim = axis.get_xlim()
