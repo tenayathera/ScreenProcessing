@@ -9,6 +9,40 @@ import glob
 import argparse
 
 
+# CONSTANTS
+
+ACCEPTED_FILE_TYPES = {'*.fastq.gz': 'fqgz',
+                       '*.fastq': 'fq',
+                       '*.fq': 'fq',
+                       '*.fa': 'fa',
+                       '*.fasta': 'fa',
+                       '*.fna': 'fa'}
+
+TEST_LINES = 10000
+
+
+def parse_arguments(parser=None):
+    if not parser:
+        parser = argparse.ArgumentParser(description='Process raw sequencing data from screens to counts '
+                                                     'files in parallel')
+    parser.add_argument('Library_Fasta', help='Fasta file of expected library reads.')
+    parser.add_argument('Out_File_Path', help='Directory where output files should be written.')
+    parser.add_argument('Seq_File_Names', nargs='+',
+                        help='Name(s) of sequencing file(s). Unix wildcards can be used to select multiple files '
+                             'at once. The script will search for all *.fastq.gz, *.fastq, and *.fa(/fasta/fna) '
+                             'files with the given wildcard name.')
+    parser.add_argument('-p', '--processors', type=int, default=1)
+    parser.add_argument('--trim_start', type=int)
+    parser.add_argument('--trim_end', type=int)
+    parser.add_argument('--test', action='store_true', default=False,
+                        help='Run the entire script on only the first %d reads of each file. Be sure to delete or '
+                             'move all test files before re-running script as they will not be overwritten.'
+                             % TEST_LINES)
+    arguments = parser.parse_args()
+
+    return arguments
+
+
 def parallel_seq_file_to_counts_parallel(fastq_gz_file_name_list, fasta_file_name_list, count_file_name_list,
                                          process_pool, library_fasta, start_index=None, stop_index=None, test=False):
     """Sequence File to Trimmed Fasta Functions"""
@@ -36,9 +70,9 @@ def seq_file_to_counts(infile_name, fasta_file_name, count_file_name, library_fa
 
     file_type = None
 
-    for fileTup in acceptedFileTypes:
-        if fnmatch.fnmatch(infile_name, fileTup[0]):
-            file_type = fileTup[1]
+    for file_match_string, file_type_abbr in ACCEPTED_FILE_TYPES.items():
+        if fnmatch.fnmatch(infile_name, file_match_string):
+            file_type = file_type_abbr
             break
 
     if file_type == 'fqgz':
@@ -78,7 +112,7 @@ def seq_file_to_counts(infile_name, fasta_file_name, count_file_name, library_fa
                 cur_read += 1
 
                 # allow test runs using only the first N reads from the fastq file
-                if test and cur_read >= testLines:
+                if test and cur_read >= TEST_LINES:
                     break
 
     with open(count_file_name, 'w') as countFile:
@@ -131,11 +165,13 @@ def parse_library_fasta(library_fasta):
 def parse_seq_file_names(file_name_list):
     infile_list = []
     outfile_base_list = []
+    if isinstance(file_name_list, str):
+        file_name_list = [file_name_list]
 
     for inputFileName in file_name_list:  # iterate through entered filenames for sequence files
         for file_name in glob.glob(inputFileName):  # generate all possible files given wildcards
-            for fileType in zip(*acceptedFileTypes)[0]:  # iterate through allowed filetypes
-                if fnmatch.fnmatch(file_name, fileType):
+            for match_string in ACCEPTED_FILE_TYPES:  # iterate through allowed filetypes
+                if fnmatch.fnmatch(file_name, match_string):
                     infile_list.append(file_name)
                     outfile_base_list.append(os.path.split(file_name)[-1].split('.')[0])
 
@@ -155,39 +191,8 @@ def print_now(print_input):
     sys.stdout.flush()
 
 
-# Global variables
-
-acceptedFileTypes = [('*.fastq.gz', 'fqgz'),
-                     ('*.fastq', 'fq'),
-                     ('*.fq', 'fq'),
-                     ('*.fa', 'fa'),
-                     ('*.fasta', 'fa'),
-                     ('*.fna', 'fa')]
-
-testLines = 10000
-
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Process raw sequencing data from screens to counts files in parallel')
-    parser.add_argument('Library_Fasta', help='Fasta file of expected library reads.')
-    parser.add_argument('Out_File_Path', help='Directory where output files should be written.')
-    parser.add_argument('Seq_File_Names', nargs='+',
-                        help='Name(s) of sequencing file(s). Unix wildcards can be used to select multiple files '
-                             'at once. The script will search for all *.fastq.gz, *.fastq, and *.fa(/fasta/fna) '
-                             'files with the given wildcard name.')
-
-    parser.add_argument('-p', '--processors', type=int, default=1)
-    parser.add_argument('--trim_start', type=int)
-    parser.add_argument('--trim_end', type=int)
-    parser.add_argument('--test', action='store_true', default=False,
-                        help='Run the entire script on only the first %d reads of each file. Be sure to delete or '
-                             'move all test files before re-running script as they will not be overwritten.'
-                             % testLines)
-
-    args = parser.parse_args()
-    # printNow(args)
-
-    # catch input mistakes
-    numProcessors = max(args.processors, 1)
+    args = parse_arguments()
 
     infileList, outfileBaseList = parse_seq_file_names(args.Seq_File_Names)
     if len(infileList) == 0:
@@ -196,8 +201,9 @@ if __name__ == '__main__':
     try:
         seqToIdDict, idsToReadcountDict, expectedReadLength = parse_library_fasta(args.Library_Fasta)
 
-        print_now('Library file loaded successfully:\n\t%.2E elements (%.2E unique sequences)\t%dbp reads expected'
-                  % (len(idsToReadcountDict), len(seqToIdDict), expectedReadLength))
+        print_now(f'Library file loaded successfully:\n\t'
+                  '{:.2E} elements ({:.2E} unique sequences)\t{}bp reads expected'
+                  .format(len(idsToReadcountDict), len(seqToIdDict), expectedReadLength))
 
     except IOError:
         sys.exit('Input error: library fasta file not found')
@@ -216,16 +222,17 @@ if __name__ == '__main__':
         os.path.join(countFilePath, outfileName + '_' + os.path.split(args.Library_Fasta)[-1] + '.counts') for
         outfileName in outfileBaseList]
 
+    numProcessors = max(args.processors, 1)
     pool = multiprocessing.Pool(min(len(infileList), numProcessors))
 
-    try:
-        resultList = parallel_seq_file_to_counts_parallel(infileList, fastaFilePathList, countFilePathList, pool,
+    #try:
+    resultList = parallel_seq_file_to_counts_parallel(infileList, fastaFilePathList, countFilePathList, pool,
                                                           args.Library_Fasta, args.trim_start, args.trim_end, args.test)
-    except ValueError as err:
-        sys.exit('Error while processing sequencing files: ' + ' '.join(err.args))
+    # except ValueError as err:
+    #     sys.exit('Error while processing sequencing files: ' + ' '.join(err.args))
 
     for filename, result in resultList:
-        print(filename + ':\n\t%.2E reads\t%.2E aligning (%.2f%%)' % result)
+        print(filename + f"reads:\n\t{result[0]:.2E} reads\t{result[0]:.2E} aligning ({result[1]:.2f}%)")
 
     pool.close()
     pool.join()
