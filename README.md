@@ -2,7 +2,7 @@
 # ScreenProcessing
 
 ##There are two steps to analyzing sequencing data from pooled screens using the ScreenProcessing pipeline
-1. Convert raw sequencing files into library counts using bowtie alignment
+1. Convert raw sequencing files into library counts ~using bowtie alignment~
 
     The script used for this step is **fastqgz_to_counts.py**, and requires a reference fasta file of the library used in the
     experiment. Indices for several published libraries are included here, and more can be generated upon request.
