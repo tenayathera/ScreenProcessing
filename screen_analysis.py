@@ -104,7 +104,7 @@ def check_options(data, graph_type, option_tuple):
     if option_tuple in col_tups:
         return True
     else:
-        print('{0} {1} not recognized'.format(option_tuple[0], option_tuple[1]))
+        print(f'{option_tuple[0]} {option_tuple[1]} not recognized')
         list_options(data, graph_type)
         return False
 
@@ -459,9 +459,8 @@ class PlottingObject(object):
 
         axis.set_ylim((0.9, axis.get_ylim()[1]))
 
-        axis.set_xlabel(
-            '{0} {1} sgRNAs passing filter per {2}'.format(phenotype, replicate,
-                                                           'transcript' if transcripts else 'gene'))
+        axis.set_xlabel(f'{phenotype} {replicate} sgRNAs passing filter per {"transcript" if transcripts else "gene"}')
+
         axis.set_ylabel('Number of sgRNAs')
 
         plt.tight_layout()
@@ -585,7 +584,7 @@ class PlottingObject(object):
             '{3} {0} {1} ({2})'.format(phenotype, replicate, effect_size_label,
                                        'gene' if not transcripts else 'transcript'),
             fontsize=8)
-        axis.set_ylabel('-log10 {0}'.format(pvalue_label, fontsize=8))
+        axis.set_ylabel(f'-log10 {pvalue_label}', fontsize=8)
 
         plt.legend(loc='best', fontsize=6, handletextpad=0.005)
 

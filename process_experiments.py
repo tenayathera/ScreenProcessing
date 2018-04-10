@@ -200,11 +200,11 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
             for pseudogene in range(expt_parameters['num_pseudogenes']):
                 rand_indices = np.random.randint(0, len(neg_table), expt_parameters['pseudogene_size'])
                 pseudo_table = neg_values[rand_indices, :]
-                pseudo_index = ['pseudo_%d_%d' % (pseudogene, i) for i in range(expt_parameters['pseudogene_size'])]
-                pseudo_seqs = ['seq_%d_%d' % (pseudogene, i) for i in
-                               range(expt_parameters['pseudogene_size'])]  # so pseudogenes aren't treated as duplicates
+                pseudo_index = [f'pseudo_{pseudogene}_{i}' for i in range(expt_parameters['pseudogene_size'])]
+                # so pseudogenes aren't treated as duplicates
+                pseudo_seqs = [f'seq_{pseudogene}_{i}' for i in range(expt_parameters['pseudogene_size'])]
                 pseudo_table_list.append(pd.DataFrame(pseudo_table, index=pseudo_index, columns=neg_columns))
-                pseudo_lib = pd.DataFrame({'gene': ['pseudo_%d' % pseudogene] * expt_parameters['pseudogene_size'],
+                pseudo_lib = pd.DataFrame({'gene': [f'pseudo_{pseudogene}'] * expt_parameters['pseudogene_size'],
                                            'transcripts': ['na'] * expt_parameters['pseudogene_size'],
                                            'sequence': pseudo_seqs}, index=pseudo_index)
                 pseudo_lib_tables.append(pseudo_lib)
@@ -217,12 +217,11 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
                 for transcript, (transcriptName, transcriptGroup) in enumerate(group.groupby('transcripts')):
                     rand_indices = np.random.randint(0, len(neg_table), len(transcriptGroup))
                     pseudo_table = neg_values[rand_indices, :]
-                    pseudo_index = ['pseudo_%d_%d_%d' % (pseudogene, transcript, i) for i in
-                                    range(len(transcriptGroup))]
-                    pseudo_seqs = ['seq_%d_%d_%d' % (pseudogene, transcript, i) for i in range(len(transcriptGroup))]
+                    pseudo_index = [f'pseudo_{pseudogene}_{transcript}_{i}' for i in range(len(transcriptGroup))]
+                    pseudo_seqs = [f'seq_{pseudogene}_{transcript}_{i}' for i in range(len(transcriptGroup))]
                     pseudo_table_list.append(pd.DataFrame(pseudo_table, index=pseudo_index, columns=neg_columns))
-                    pseudo_lib = pd.DataFrame({'gene': ['pseudo_%d' % pseudogene] * len(transcriptGroup),
-                                               'transcripts': ['pseudo_transcript_%d' % transcript] * len(
+                    pseudo_lib = pd.DataFrame({'gene': [f'pseudo_{pseudogene}'] * len(transcriptGroup),
+                                               'transcripts': [f'pseudo_transcript_{transcript}'] * len(
                                                    transcriptGroup),
                                                'sequence': pseudo_seqs}, index=pseudo_index)
                     pseudo_lib_tables.append(pseudo_lib)
@@ -285,9 +284,8 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
 
 # given a gene table indexed by both gene and transcript, score genes by the best m-w p-value per phenotype/replicate
 def score_gene_by_best_transcript(gene_table):
-    gene_table_trans_groups = gene_table.reorder_levels([2, 0, 1], axis=1)[
-        'Mann-Whitney p-value'].reset_index().groupby(
-        'gene')
+    gene_table_trans_groups = gene_table.reorder_levels([2, 0, 1], axis=1)['Mann-Whitney p-value']\
+        .reset_index().groupby('gene')
 
     best_transcript_frame = gene_table_trans_groups.apply(get_best_transcript)
 
@@ -546,7 +544,7 @@ def apply_gene_score_function(grouped_phenotype_table, negative_table, analysis,
             means = grouped_phenotype_table.apply(lambda x: average_best_n(x, num_to_average))
             counts = grouped_phenotype_table.count()
             result = pd.concat([means, counts], axis=1,
-                               keys=['average phenotype of strongest %d' % num_to_average, 'sgRNA count_avg'])
+                               keys=[f'average phenotype of strongest {num_to_average}', 'sgRNA count_avg'])
     elif analysis == 'calculate_mw':
         pvals = grouped_phenotype_table.apply(lambda x: apply_m_w(x, negative_table))
         counts = grouped_phenotype_table.count()
@@ -556,9 +554,9 @@ def apply_gene_score_function(grouped_phenotype_table, negative_table, analysis,
         pvals = grouped_phenotype_table.aggregate(
             lambda x: sorted(x, key=abs, reverse=True)[nth - 1] if nth <= len(x) else np.nan)
         counts = grouped_phenotype_table.count()
-        result = pd.concat([pvals, counts], axis=1, keys=['%dth best score' % nth, 'sgRNA count_nth best'])
+        result = pd.concat([pvals, counts], axis=1, keys=[f'{nth}th best score', 'sgRNA count_nth best'])
     else:
-        raise ValueError('Analysis %s not recognized or not implemented' % analysis)
+        raise ValueError('Analysis {analysis} not recognized or not implemented')
 
     return result
 

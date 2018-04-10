@@ -51,7 +51,7 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         if parsed_library.lower() in library_dict:
             param_dict['library'] = parsed_library.lower()
         else:
-            warning_string += 'Library name \"%s\" not recognized\n' % parsed_library
+            warning_string += f'Library name \"{parsed_library}\" not recognized\n'
             exit_status += 1
 
     else:
@@ -70,7 +70,7 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
                     param_dict['sublibraries'].append(sub)
 
                 else:
-                    warning_string += 'Sublibrary %s not recognized\n' % sub
+                    warning_string += f'Sublibrary {sub} not recognized\n'
 
         else:
             param_dict['sublibraries'] = library_dict[param_dict['library']]

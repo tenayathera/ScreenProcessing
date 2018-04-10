@@ -66,7 +66,7 @@ def seq_file_to_counts_wrapper(arg):
 
 def seq_file_to_counts(infile_name, fasta_file_name, count_file_name, library_fasta,
                        start_index=None, stop_index=None, test=False):
-    print_now('Processing %s' % infile_name)
+    print_now(f'Processing {infile_name}')
 
     file_type = None
 
@@ -107,7 +107,7 @@ def seq_file_to_counts(infile_name, fasta_file_name, count_file_name, library_fa
                     num_aligning += 1
 
                 else:
-                    unalignedFile.write('>%d\n%s\n' % (i, seq))
+                    unalignedFile.write(f'> {i}\n{seq}\n')
 
                 cur_read += 1
 
@@ -117,9 +117,10 @@ def seq_file_to_counts(infile_name, fasta_file_name, count_file_name, library_fa
 
     with open(count_file_name, 'w') as countFile:
         for countTup in (sorted(zip(list(ids_to_readcount_dict.keys()), list(ids_to_readcount_dict.values())))):
-            countFile.write('%s\t%d\n' % countTup)
+            countFile.write(f'{countTup[0]}\t{countTup[1]}\n')
 
-    print_now('Done processing %s' % infile_name)
+    print_now(f'Done processing {infile_name}')
+    print_now(f'Counts file: {count_file_name}')
 
     return cur_read, num_aligning, num_aligning * 100.0 / cur_read
 
@@ -225,14 +226,15 @@ if __name__ == '__main__':
     numProcessors = max(args.processors, 1)
     pool = multiprocessing.Pool(min(len(infileList), numProcessors))
 
-    #try:
-    resultList = parallel_seq_file_to_counts_parallel(infileList, fastaFilePathList, countFilePathList, pool,
-                                                          args.Library_Fasta, args.trim_start, args.trim_end, args.test)
-    # except ValueError as err:
-    #     sys.exit('Error while processing sequencing files: ' + ' '.join(err.args))
+    try:
+        resultList = parallel_seq_file_to_counts_parallel(infileList, fastaFilePathList,
+                                                          countFilePathList, pool, args.Library_Fasta, args.trim_start,
+                                                          args.trim_end, args.test)
+    except ValueError as err:
+        sys.exit('Error while processing sequencing files: ' + ' '.join(err.args))
 
     for filename, result in resultList:
-        print(filename + f"reads:\n\t{result[0]:.2E} reads\t{result[0]:.2E} aligning ({result[1]:.2f}%)")
+        print(filename + f"reads:\n\t{result[0]:.2E} reads\t{result[1]:.2E} aligning ({result[2]:.2f}%)")
 
     pool.close()
     pool.join()
