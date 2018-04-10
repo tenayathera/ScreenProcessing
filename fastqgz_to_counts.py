@@ -203,7 +203,7 @@ if __name__ == '__main__':
         seqToIdDict, idsToReadcountDict, expectedReadLength = parse_library_fasta(args.Library_Fasta)
 
         print_now(f'Library file loaded successfully:\n\t'
-                  '{:.2E} elements ({:.2E} unique sequences)\t{}bp reads expected'
+                  '{:,} elements ({:,} unique sequences)\t{}bp reads expected'
                   .format(len(idsToReadcountDict), len(seqToIdDict), expectedReadLength))
 
     except IOError:
@@ -234,7 +234,7 @@ if __name__ == '__main__':
         sys.exit('Error while processing sequencing files: ' + ' '.join(err.args))
 
     for filename, result in resultList:
-        print(filename + f"\n\t{result[0]:,} reads\t{result[1]:.2E} aligning ({result[2]:.2f}%)")
+        print(filename + f"\n\t{result[0]:,} reads\t{result[1]:,} aligning ({result[2]:.2f}%)")
 
     pool.close()
     pool.join()
