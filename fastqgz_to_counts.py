@@ -234,7 +234,7 @@ if __name__ == '__main__':
         sys.exit('Error while processing sequencing files: ' + ' '.join(err.args))
 
     for filename, result in resultList:
-        print(filename + f"reads:\n\t{result[0]:.2E} reads\t{result[1]:.2E} aligning ({result[2]:.2f}%)")
+        print(filename + f"\n\t{result[0]:,} reads\t{result[1]:.2E} aligning ({result[2]:.2f}%)")
 
     pool.close()
     pool.join()
