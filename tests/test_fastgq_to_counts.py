@@ -18,10 +18,10 @@ class TestFastqgzToCounts(unittest.TestCase):
         self.assertIn('GAGACCCAGCGCTAACCAGGTTTAAGAG', seq_to_id_dict)
         self.assertEqual(seq_to_id_dict['GAGACCCAGCGCTAACCAGGTTTAAGAG'], ['A1BG_-_58858617.23-P1'])
 
-        self.assertEqual(len(seq_to_id_dict), 205647)
+        self.assertEqual(len(seq_to_id_dict), 205648)
         self.assertEqual(expected_read_length, 28)
 
-        self.assertEqual(len(ids_to_readcount_dict), 209069)
+        self.assertEqual(len(ids_to_readcount_dict), 209070)
 
         # last element:
         self.assertIn('AGAAGCCAACCTCGCGTTAGTTTAAGAG', seq_to_id_dict)

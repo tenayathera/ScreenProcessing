@@ -131,26 +131,22 @@ def parse_library_fasta(library_fasta):
     ids_to_readcounts = dict()
     read_lengths = []
 
-    cur_seq_id = ''
-    cur_seq = ''
+    cur_seq_id = None
+    cur_seq = None
 
     with open(library_fasta) as infile:
         for line in infile:
             if line[0] == '>':
-                if cur_seq_id != '' and cur_seq != '':
-                    if cur_seq not in seq_to_ids:
-                        seq_to_ids[cur_seq] = []
-                    seq_to_ids[cur_seq].append(cur_seq_id)
-
-                    ids_to_readcounts[cur_seq_id] = 0
-
-                    read_lengths.append(len(cur_seq))
-
                 cur_seq_id = line.strip()[1:]
                 cur_seq = ''
-
             else:
                 cur_seq += line.strip().upper()
+
+                if cur_seq not in seq_to_ids:
+                    seq_to_ids[cur_seq] = []
+                seq_to_ids[cur_seq].append(cur_seq_id)
+                ids_to_readcounts[cur_seq_id] = 0
+                read_lengths.append(len(cur_seq))
 
     if len(seq_to_ids) == 0 or len(ids_to_readcounts) == 0 or read_lengths[0] == 0:
         raise ValueError('library fasta could not be parsed or contains no sequences')
