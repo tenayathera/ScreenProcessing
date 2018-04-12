@@ -131,7 +131,8 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         param_dict['condition_tuples'] = []
 
         if 'counts_file_list' in param_dict:
-            expected_conditions = set(zip(*param_dict['counts_file_list'])[0])
+            expected_conditions = set([item[0] for item in param_dict['counts_file_list']])
+            # expected_conditions = set(zip(*param_dict['counts_file_list'])[0])
         else:
             expected_conditions = []
 
@@ -192,8 +193,11 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         growth_value_string = parser.get('growth_values', 'growth_value_string').strip()
 
         if 'condition_tuples' in param_dict and 'counts_file_list' in param_dict:
-            expected_comparisons = set(zip(*param_dict['condition_tuples'])[0])
-            expected_replicates = set(zip(*param_dict['counts_file_list'])[1])
+            expected_comparisons = set([item[0] for item in param_dict['condition_tuples']])
+            expected_replicates = set([item[1] for item in param_dict['condition_tuples']])
+
+            # expected_comparisons = set(zip(*param_dict['condition_tuples'])[0])
+            # expected_replicates = set(zip(*param_dict['counts_file_list'])[1])
 
             expected_tuple_list = []
 
@@ -243,9 +247,9 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         # because we enforced no duplicates or unexpected values these should match up unless there
         # were values not entered require all growth values to be explictly entered if some were
         if len(entered_tuple_list) != len(expected_tuple_list):
-            warning_string += 'Growth values were not entered for all expected comparisons/replicates. Expected: ' + \
-                             ','.join([':'.join(tup) for tup in expected_tuple_list]) + '\nEntered: ' + \
-                             ','.join([':'.join(tup) for tup in entered_tuple_list]) + '\n'
+            warning_string += 'Growth values were not entered for all expected comparisons/replicates.\n' \
+                              'Expected: ' + ','.join([':'.join(tup) for tup in expected_tuple_list]) + '\n' \
+                              'Entered: ' + ','.join([':'.join(tup) for tup in entered_tuple_list]) + '\n'
             exit_status += 1
         else:
             param_dict['growth_value_tuples'] = growth_value_tuples
@@ -256,8 +260,11 @@ def parse_expt_config(config_file, libraries_to_sublibraries_dict):
         param_dict['growth_value_tuples'] = []
 
         if 'condition_tuples' in param_dict and 'counts_file_list' in param_dict:
-            expected_comparisons = set(zip(*param_dict['condition_tuples'])[0])
-            expected_replicates = set(zip(*param_dict['counts_file_list'])[1])
+            expected_comparisons = set([item[0] for item in param_dict['condition_tuples']])
+            expected_replicates = set([item[1] for item in param_dict['counts_file_list']])
+
+            # expected_comparisons = set(zip(*param_dict['condition_tuples'])[0])
+            # expected_replicates = set(zip(*param_dict['counts_file_list'])[1])
 
             for comp in expected_comparisons:
                 for rep in expected_replicates:

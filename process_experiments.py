@@ -119,8 +119,9 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
     print_now('Computing sgRNA phenotype scores')
 
     growth_value_dict = {(tup[0], tup[1]): tup[2] for tup in expt_parameters['growth_value_tuples']}
-    phenotype_list = list(set(zip(*expt_parameters['condition_tuples'])[0]))
-    replicate_list = sorted(list(set(zip(*expt_parameters['counts_file_list'])[1])))
+
+    phenotype_list = list(set([item[0] for item in expt_parameters['condition_tuples']]))
+    replicate_list = sorted(list(set([item[1] for item in expt_parameters['counts_file_list']])))
 
     phenotype_score_dict = dict()
     for (phenotype, condition1, condition2) in expt_parameters['condition_tuples']:
@@ -469,12 +470,12 @@ def compute_phenotype_score(counts1, counts2, library_table, growth_value, pseud
         # print negCounts
     else:
         neg_counts = combined_counts_pseudo
-    neglog2e = neg_counts.apply(calc_log2e, countsRatio=counts_ratio, growthValue=1, wtLog2E=0, axis=1).median()
+    neglog2e = neg_counts.apply(calc_log2e, counts_ratio=counts_ratio, growth_value=1, wt_log2_e=0, axis=1).median()
     # print neglog2e
 
     # compute phenotype scores
-    scores = combined_counts_pseudo.apply(calc_log2e, countsRatio=counts_ratio, growthValue=growth_value,
-                                          wtLog2E=neglog2e, axis=1)
+    scores = combined_counts_pseudo.apply(calc_log2e, counts_ratio=counts_ratio, growth_value=growth_value,
+                                          wt_log2_e=neglog2e, axis=1)
 
     return scores
 
