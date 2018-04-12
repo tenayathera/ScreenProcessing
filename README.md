@@ -25,7 +25,7 @@
 * Scipy/Numpy/Pandas/Matplotlib
 * iPython or iPython Notebook recommended for interactive graph plotting
 
-~(ScreenProcessing no longer uses Bowtie to align sequencing reads; if you want to use or fork from this functionality use an earlier version of the program)~
+(ScreenProcessing _no longer uses Bowtie_ to align sequencing reads; if you want to use or fork from this functionality use an earlier version of the program)
 
 #ScreenProcessing Demo
 A PDF slideshow with a step-by-step tutorial of screen analysis using the data files included in the Demo folder can found here: [ScreenProcessing Demo](ScreenProcessing_tutorial.pdf)
