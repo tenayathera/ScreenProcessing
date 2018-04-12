@@ -20,7 +20,7 @@ defaultLibConfigName = 'library_config.txt'
 # a screen processing pipeline that requires just a config file and a directory of supported libraries
 # error checking in config parser is fairly robust, so not checking for input errors here
 def process_experiments_from_config(config_file, library_directory, generate_plots='png'):
-    # load in the supported libraries and sublibraries
+    """load in the supported libraries and sublibraries"""
     try:
         libraries_to_sublibraries, libraries_to_tables = parse_library_config(
             os.path.join(library_directory, defaultLibConfigName))
@@ -51,7 +51,7 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
     print_now('Accessing library information')
 
     library_table = pd.read_csv(os.path.join(library_directory, libraries_to_tables[expt_parameters['library']]),
-                                sep='\t', tupleize_cols=False, header=0, index_col=0).sort_index()
+                                sep='\t', header=0, index_col=0).sort_index()
     sublib_column = library_table.apply(lambda row: row['sublibrary'].lower() in expt_parameters['sublibraries'],
                                         axis=1)
 
@@ -59,7 +59,7 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
         print('After limiting analysis to specified sublibraries, no elements are left')
         return
 
-    library_table[sublib_column].to_csv(outbase + '_librarytable.txt', sep='\t', tupleize_cols=False)
+    library_table[sublib_column].to_csv(outbase + '_librarytable.txt', sep='\t')
 
     # load in counts, create table of total counts in each and each file as a column
     print_now('Loading counts data')
@@ -80,7 +80,7 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
 
     # print column_dict
     counts_table = pd.DataFrame(column_dict)  # , index=library_table[sublib_column].index)
-    counts_table.to_csv(outbase + '_rawcountstable.txt', sep='\t', tupleize_cols=False)
+    counts_table.to_csv(outbase + '_rawcountstable.txt', sep='\t')
     counts_table.sum().to_csv(outbase + '_rawcountstable_summary.txt', sep='\t')
 
     # merge counts for same conditions/replicates, and create summary table
@@ -89,7 +89,7 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
 
     expt_groups = counts_table.groupby(level=[0, 1], axis=1)
     merged_counts_table = expt_groups.aggregate(np.sum)
-    merged_counts_table.to_csv(outbase + '_mergedcountstable.txt', sep='\t', tupleize_cols=False)
+    merged_counts_table.to_csv(outbase + '_mergedcountstable.txt', sep='\t')
     merged_counts_table.sum().to_csv(outbase + '_mergedcountstable_summary.txt', sep='\t')
 
     if generate_plots != 'off' and max(expt_groups.count().iloc[0]) > 1:
@@ -165,7 +165,7 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
             # average nan and real to nan; otherwise this could lead to data points with just one rep informing results
 
     phenotype_table = pd.DataFrame(phenotype_score_dict)
-    phenotype_table.to_csv(outbase + '_phenotypetable.txt', sep='\t', tupleize_cols=False)
+    phenotype_table.to_csv(outbase + '_phenotypetable.txt', sep='\t')
 
     if len(replicate_list) > 1 and generate_plots != 'off':
         temp_data_dict = {'library': library_table[sublib_column],
@@ -260,7 +260,7 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
                 apply_gene_score_function(gene_groups, neg_table, analysis, expt_parameters['analyses'][analysis]))
 
         gene_table = pd.concat(analysis_tables, axis=1).reorder_levels([1, 2, 0], axis=1).sort_index(axis=1)
-        gene_table.to_csv(outbase + '_genetable.txt', sep='\t', tupleize_cols=False)
+        gene_table.to_csv(outbase + '_genetable.txt', sep='\t')
 
         # collapse the gene-transcript indices into a single score for a gene by best MW p-value, where applicable
         if expt_parameters['collapse_to_transcripts'] and 'calculate_mw' in expt_parameters['analyses']:
@@ -268,7 +268,7 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
             sys.stdout.flush()
 
             gene_table_collapsed = score_gene_by_best_transcript(gene_table)
-            gene_table_collapsed.to_csv(outbase + '_genetable_collapsed.txt', sep='\t', tupleize_cols=False)
+            gene_table_collapsed.to_csv(outbase + '_genetable_collapsed.txt', sep='\t')
 
     if generate_plots != 'off':
         if 'calculate_ave' in expt_parameters['analyses'] and 'calculate_mw' in expt_parameters['analyses']:
@@ -283,8 +283,10 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
     print('Done!')
 
 
-# given a gene table indexed by both gene and transcript, score genes by the best m-w p-value per phenotype/replicate
+
 def score_gene_by_best_transcript(gene_table):
+    """ given a gene table indexed by both gene and transcript, score genes by the best m-w p-value
+    per phenotype/replicate"""
     gene_table_trans_groups = gene_table.reorder_levels([2, 0, 1], axis=1)['Mann-Whitney p-value']\
         .reset_index().groupby('gene')
 
