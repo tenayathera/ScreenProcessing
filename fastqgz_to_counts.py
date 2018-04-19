@@ -20,6 +20,17 @@ ACCEPTED_FILE_TYPES = {'*.fastq.gz': 'fqgz',
 
 TEST_LINES = 10000
 
+COMPLIMENT = {'A': 'T', 'C': 'G',  'G': 'C', 'T': 'A', 'a': 'T', 'c': 'G', 'g': 'C', 't': 'A'}
+
+
+def reverse_compliment(seq):
+    if not seq:
+        return None
+    try:
+        return "".join([COMPLIMENT[ch] for ch in reversed(seq)])
+    except KeyError:
+        return None
+
 
 def parse_arguments(parser=None):
     if not parser:
@@ -91,29 +102,45 @@ def seq_file_to_counts(infile_name, fasta_file_name, count_file_name, library_fa
 
     with open(fasta_file_name, 'w') as unalignedFile:
         for i, fastqLine in enumerate(infile):
+            if i % 4000000 == 0 and i > 0:
+                print(f"{int(i/4):,} lines processed - {num_aligning} ({round(400*num_aligning/i,2)}%)")
             if i % 4 != 1:
                 continue
 
-            else:
-                seq = fastqLine.strip()[start_index:stop_index]
+            clean_line = fastqLine.strip()
+            try:
+                clean_line = str(clean_line, 'utf-8')
+            except AttributeError:
+                pass
 
-                if i == 1 and len(seq) != expected_read_length:
-                    raise ValueError('Trimmed read length does not match expected reference read length')
+            seq1 = clean_line[start_index:stop_index]
 
+            if 'N' in seq1:
+                continue
+            r_seq1 = reverse_compliment(seq1)
+
+            if i == 1 and len(seq1) != expected_read_length:
+                raise ValueError('Trimmed read length does not match expected reference read length')
+
+            aligned = False
+            for seq in [seq1, r_seq1]:
+                if seq is None:
+                    continue
                 if seq in seq_to_id_dict:
                     for seqId in seq_to_id_dict[seq]:
                         ids_to_readcount_dict[seqId] += 1
-
+                    aligned = True
                     num_aligning += 1
-
-                else:
-                    unalignedFile.write(f'> {i}\n{seq}\n')
-
-                cur_read += 1
-
-                # allow test runs using only the first N reads from the fastq file
-                if test and cur_read >= TEST_LINES:
                     break
+
+            if not aligned:
+                unalignedFile.write(f'> {i}\n{seq1}\n')
+
+            cur_read += 1
+
+            # allow test runs using only the first N reads from the fastq file
+            if test and cur_read >= TEST_LINES:
+                break
 
     with open(count_file_name, 'w') as countFile:
         for countTup in (sorted(zip(list(ids_to_readcount_dict.keys()), list(ids_to_readcount_dict.values())))):
