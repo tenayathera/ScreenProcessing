@@ -283,7 +283,6 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
     print('Done!')
 
 
-
 def score_gene_by_best_transcript(gene_table):
     """ given a gene table indexed by both gene and transcript, score genes by the best m-w p-value
     per phenotype/replicate"""
