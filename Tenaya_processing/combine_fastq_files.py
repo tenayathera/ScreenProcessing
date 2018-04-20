@@ -10,6 +10,7 @@ def parse_arguments(parser=None):
         parser = argparse.ArgumentParser()
 
     parser.add_argument("--input_dir", help="name of the file to tweet")
+    parser.add_argument("--output_dir", help="Where to put the combined files")
     args = parser.parse_args()
 
     return args
@@ -17,7 +18,7 @@ def parse_arguments(parser=None):
 
 DIR_TEMPLATE = "Ivey-MM-2338-{sample}_L00{lane}"
 FILE_TEMPLATE = "Ivey-MM-2338-{sample}_S{sample_int}_L00{lane}_R1_001.fastq.gz"
-OUTPUT_TEMPLATE = "{input_dir}output/S{sample}/{sample}-{direction}.fastq.gz"
+OUTPUT_TEMPLATE = "{output_dir}output/S{sample}/{sample}.fastq.gz"
 LANES = [str(x+1) for x in range(4)]
 SAMPLES = [('{:02}'.format(x+1)) for x in range(18)]
 
@@ -25,8 +26,11 @@ SAMPLES = [('{:02}'.format(x+1)) for x in range(18)]
 class DefaultClass(object):
     def __init__(self, args):
         self.input_dir = args.input_dir
+        self.output_dir = args.output_dir
         if not self.input_dir.endswith(os.path.sep):
             self.input_dir += os.path.sep
+        if not self.output_dir.endswith(os.path.sep):
+            self.output_dir += os.path.sep
         self.subdirectories = {}
 
         self.p = Path(self.input_dir)
@@ -38,32 +42,20 @@ class DefaultClass(object):
 
     def merge_samples(self):
         for sample in SAMPLES:
-            self.p = Path(f"{self.input_dir}{os.path.sep}output{os.path.sep}S{sample}")
-            self.p.mkdir(parents=True, exist_ok=True)
-            forward_set = ['cat']
-            reverse_set = ['cat']
+            cat_set = ['cat']
             for lane in LANES:
                 directory = self.subdirectories[DIR_TEMPLATE.format(sample=sample, lane=lane)]
                 filename = FILE_TEMPLATE.format(sample=sample, sample_int=int(sample), lane=lane)
                 location = f"{self.input_dir}{directory}{os.path.sep}{filename}"
-                if int(lane) % 2 == 0:  # even - reverse
-                    reverse_set.append(location)
-                else:  # odd - forward
-                    forward_set.append(location)
+                cat_set.append(location)
 
-            print(" ".join(forward_set))
-            output = OUTPUT_TEMPLATE.format(input_dir=self.input_dir, sample=sample, direction="forward")
-            try:
-                with open(output, 'w') as f:
-                    subprocess.check_call(forward_set, stdout=f)
-            except CalledProcessError as cpe:
-                print("Error while concattenating gzip files.", cpe)
-                return
+            print(" ".join(cat_set))
+            self.p = Path(f"{self.output_dir}{os.path.sep}output{os.path.sep}S{sample}")
             self.p.mkdir(parents=True, exist_ok=True)
-            output = OUTPUT_TEMPLATE.format(input_dir=self.input_dir, sample=sample, direction="reverse")
+            output = OUTPUT_TEMPLATE.format(output_dir=self.output_dir, sample=sample)
             try:
                 with open(output, 'w') as f:
-                    subprocess.check_call(reverse_set, stdout=f)
+                    subprocess.check_call(cat_set, stdout=f)
             except CalledProcessError as cpe:
                 print("Error while concattenating gzip files.", cpe)
                 return
