@@ -71,10 +71,10 @@ def process_experiments_from_config(config_file, library_directory, generate_plo
                   'are the cases where this should not be enforced?')
             raise Exception('condition, replicate, and count file combination already assigned')
 
-        count_series = read_counts_file(tup[2]).reset_index().drop_duplicates('id').set_index(
-            'id')  # for now also dropping duplicate ids in counts for overlapping linc sublibraries
-        count_series = library_table[sublib_column].align(count_series, axis=0, join='left', fill_value=0)[
-            1]  # expand series to fill 0 for every missing entry
+        # for now also dropping duplicate ids in counts for overlapping linc sublibraries
+        count_series = read_counts_file(tup[2]).reset_index().drop_duplicates('id').set_index('id')
+        # expand series to fill 0 for every missing entry
+        count_series = library_table[sublib_column].align(count_series, axis=0, join='left', fill_value=0)[1]
 
         column_dict[tup] = count_series['counts']  # [sublib_column] #then shrink series to only desired sublibraries
 
@@ -523,8 +523,8 @@ def compute_gene_scores(library_table, score_table, norm_to_negs=True):
         for name, group in gene_groups:
             if name == 'negative_control':
                 continue
-            col_list.append(
-                geneStats(group[expt], neg_array))  # group[expt].apply(geneStats, axis = 0, neg_array = neg_array))
+            # group[expt].apply(geneStats, axis = 0, neg_array = neg_array))
+            col_list.append(gene_groups(group[expt], neg_array))
             group_list.append(name)
 
         scored_columns.append(pd.DataFrame(np.array(col_list), index=group_list, columns=['KS', 'KS_sign', 'MW']))
