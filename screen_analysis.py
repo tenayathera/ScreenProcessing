@@ -313,8 +313,8 @@ class PlottingObject(object):
                 name2 = '{0:.30}'.format(os.path.split(name2)[-1])
                 if i < j:
                     clean_axes(axes[i, j], top=False, bottom=False, left=False, right=False)
-                    axes[i, j].xaxis.set_tick_params(top='off', bottom='off', labelbottom='off')
-                    axes[i, j].yaxis.set_tick_params(left='off', right='off', labelleft='off')
+                    axes[i, j].xaxis.set_tick_params(top=False, bottom=False, labelbottom=False)
+                    axes[i, j].yaxis.set_tick_params(left=False, right=False, labelleft=False)
 
                 elif i == j:
                     axes[i, j].hist(np.log2(col2.dropna() + 1), bins=int(len(col2) ** .3), histtype='step',
